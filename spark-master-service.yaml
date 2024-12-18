@@ -10,10 +10,12 @@ spec:
     app: spark
     role: master
   ports:
-    - protocol: TCP
-      port: 7077
-      targetPort: 7077
-    - protocol: TCP
+    - name: spark-ui
+      protocol: TCP
       port: 8080
       targetPort: 8080
+    - name: spark-driver
+      protocol: TCP
+      port: 7077
+      targetPort: 7077
   type: ClusterIP
