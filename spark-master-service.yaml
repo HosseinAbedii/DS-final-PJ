@@ -9,13 +9,15 @@ spec:
   selector:
     app: spark
     role: master
+  type: NodePort
   ports:
     - name: spark-ui
       protocol: TCP
       port: 8080
       targetPort: 8080
+      nodePort: 30080  
     - name: spark-driver
       protocol: TCP
       port: 7077
       targetPort: 7077
-  type: ClusterIP
+      nodePort: 30077  
