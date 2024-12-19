@@ -1,41 +1,41 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: consumer-deployment
+  name: spark-consumer
+  labels:
+    app: spark-consumer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: consumer
+      app: spark-consumer
   template:
     metadata:
       labels:
-        app: consumer
+        app: spark-consumer
     spec:
       containers:
-      - name: consumer
-        image: consumer:latest  # Use local image
-        imagePullPolicy: IfNotPresent  # Use local image if available
-        ports:
-        - containerPort: 5001  # Changed from 9092 to 5001
-        command: 
-        - "spark-submit"
-        - "--packages"
-        - "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3"  # Fixed to correct latest version
-        - "--master"
-        - "k8s://https://kubernetes.default.svc:443"
-        - "/app/consumer.py"
-        env:
-        - name: SPARK_HOME
-          value: "/opt/bitnami/spark"
+      - name: spark-consumer
+        image: bitnami/spark:3.5.3
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            pip install kafka-python pyspark requests numpy psutil &&
+            spark-submit \
+            --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 \
+            /app/consumer.py
         volumeMounts:
-        - name: src-files
+        - name: app-code
           mountPath: /app
+        env:
+        - name: KAFKA_BROKER
+          value: "kafka:9092"
+        - name: SPARK_MASTER
+          value: "spark://spark-master:7077"
       volumes:
-      - name: src-files
+      - name: app-code
         hostPath:
-          path: /src
-          type: Directory
+          path: /c/Users/abedi/OneDrive/Documents/GitHub/DS-final-PJ/src
 ---
 apiVersion: v1
 kind: Service

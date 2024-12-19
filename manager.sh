@@ -4,7 +4,7 @@
 VENV_DIR="venv"
 
 # Define the name of the Python script to run
-SCRIPT_NAME="generator.py"
+SCRIPT_NAME="src/generator.py"
 
 # Function to initialize the project
 init() {
@@ -22,6 +22,14 @@ init() {
     echo "Initialization completed."
 }
 
+# Function to check if Kafka is running
+check_kafka() {
+    if ! nc -z localhost 9092; then
+        echo "Kafka server is not running. Please start Kafka and try again."
+        exit 1
+    fi
+}
+
 # Function to start the Python script
 start() {
     if [ ! -d "$VENV_DIR" ]; then
@@ -31,6 +39,8 @@ start() {
 
     echo "Activating virtual environment..."
     source $VENV_DIR/bin/activate
+
+    check_kafka
 
     echo "Starting $SCRIPT_NAME..."
     python $SCRIPT_NAME &
