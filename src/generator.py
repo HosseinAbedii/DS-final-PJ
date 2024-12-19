@@ -21,23 +21,36 @@ api_endpoint = "http://localhost:5000/ingest"
 
 # Kafka configuration
 kafka_topic = "financial_data"
-kafka_bootstrap_servers = ["kafka:9092"]  # Changed to use K8s service name
+kafka_bootstrap_servers = ['kafka:9092']  # Changed to match K8s service name
 
-# Initialize Kafka producer
+# Initialize Kafka producer with better error handling
 producer = KafkaProducer(
     bootstrap_servers=kafka_bootstrap_servers,
     value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-    retries=5,  # Add retries for robustness
-    retry_backoff_ms=1000
-) 
+    retries=5,
+    retry_backoff_ms=1000,
+    request_timeout_ms=30000,
+    security_protocol="PLAINTEXT",
+    acks='all'
+)
 
-# Create Kafka topic if it doesn't exist
-admin_client = KafkaAdminClient(bootstrap_servers=kafka_bootstrap_servers, client_id='test')
-topic_list = [NewTopic(name=kafka_topic, num_partitions=1, replication_factor=1)]
-try:
-    admin_client.create_topics(new_topics=topic_list, validate_only=False)
-except Exception as e:
-    print(f"Topic creation failed: {e}")
+# More robust topic creation
+def create_kafka_topic():
+    try:
+        admin_client = KafkaAdminClient(
+            bootstrap_servers=kafka_bootstrap_servers,
+            client_id='financial-data-generator'
+        )
+        topic_list = [NewTopic(name=kafka_topic, num_partitions=1, replication_factor=1)]
+        admin_client.create_topics(new_topics=topic_list, validate_only=False)
+        print(f"Successfully created topic: {kafka_topic}")
+    except Exception as e:
+        if "TopicAlreadyExistsError" in str(e):
+            print(f"Topic {kafka_topic} already exists")
+        else:
+            print(f"Error creating topic: {e}")
+    finally:
+        admin_client.close()
 
 def generate_data():
     stock_symbol = random.choice(stocks)
@@ -112,12 +125,21 @@ def generate_additional_data():
     return data
 
 
+# More robust send_data function
 def send_data(data):
-    try:
-        producer.send(kafka_topic, value=data)
-        producer.flush()
-    except Exception as e:
-        print(f"Error occurred: {e}")
+    max_retries = 3
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            future = producer.send(kafka_topic, value=data)
+            future.get(timeout=10)  # Wait for send to complete
+            return
+        except Exception as e:
+            retry_count += 1
+            print(f"Error sending data (attempt {retry_count}/{max_retries}): {e}")
+            if retry_count == max_retries:
+                print("Max retries reached, dropping message")
+            time.sleep(1)
 
 
 def send_additional_data():
@@ -128,6 +150,7 @@ def send_additional_data():
 
 
 if __name__ == "__main__":
+    create_kafka_topic()  # Create topic before starting
     threading.Thread(target=send_additional_data, daemon=True).start()
     while True:
         data = generate_data()
