@@ -18,7 +18,16 @@ spec:
         imagePullPolicy: IfNotPresent  # Use local image if available
         ports:
         - containerPort: 5001  # Changed from 9092 to 5001
-        command: ["python3", "/app/consumer.py"]
+        command: 
+        - "spark-submit"
+        - "--packages"
+        - "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3"  # Fixed to correct latest version
+        - "--master"
+        - "k8s://https://kubernetes.default.svc:443"
+        - "/app/consumer.py"
+        env:
+        - name: SPARK_HOME
+          value: "/opt/bitnami/spark"
         volumeMounts:
         - name: src-files
           mountPath: /app
