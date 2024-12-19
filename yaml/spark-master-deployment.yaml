@@ -20,6 +20,7 @@ spec:
       containers:
       - name: spark-master
         image: bitnami/spark:3.5.3
+        imagePullPolicy: IfNotPresent
         env:
         - name: SPARK_MODE
           value: master
