@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: generator
-        image: data-generator:latest
-        imagePullPolicy: IfNotPresent
+        image: localhost:5000/data-generator:latest  # Updated image reference
+        imagePullPolicy: Always  # Changed to Always to ensure latest image
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
@@ -30,7 +30,7 @@ metadata:
   name: generator-service
 spec:
   selector:
-    app: generator
+    app: data-generator  # Updated to match deployment labels
   ports:
     - protocol: TCP
       port: 5000  # Changed from 9092 to 5000
