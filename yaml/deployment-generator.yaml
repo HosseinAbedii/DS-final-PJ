@@ -17,7 +17,7 @@ spec:
       containers:
       - name: generator
         image: data-generator:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
