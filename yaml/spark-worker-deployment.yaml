@@ -3,16 +3,16 @@ kind: Deployment
 metadata:
   name: spark-worker
   labels:
-    app: spark-worker
+    app: "spark-worker"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: spark-worker
+      app: "spark-worker"
   template:
     metadata:
       labels:
-        app: spark-worker
+        app: "spark-worker"
     spec:
       containers:
       - name: spark-worker
