@@ -3,6 +3,7 @@ import random
 import json
 import numpy as np
 from kafka import KafkaProducer
+from kafka.admin import KafkaAdminClient, NewTopic
 
 # Kafka configuration
 KAFKA_TOPIC = 'financial_data'
@@ -16,6 +17,24 @@ producer = KafkaProducer(
     value_serializer=lambda v: json.dumps(v).encode('utf-8'),
     acks='all'
 )
+
+def create_kafka_topic():
+    try:
+        admin_client = KafkaAdminClient(
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+            client_id='financial-data-producer'
+        )
+        topic_list = [NewTopic(name=KAFKA_TOPIC, num_partitions=1, replication_factor=1)]
+        admin_client.create_topics(new_topics=topic_list, validate_only=False)
+        print(f"Successfully created topic: {KAFKA_TOPIC}")
+    except Exception as e:
+        if "TopicAlreadyExistsError" in str(e):
+            print(f"Topic {KAFKA_TOPIC} already exists")
+        else:
+            print(f"Error creating topic: {e}")
+    finally:
+        if admin_client:
+            admin_client.close()
 
 def generate_market_data():
     stock = random.choice(STOCKS)
@@ -33,7 +52,9 @@ def generate_market_data():
     return data
 
 def main():
-    print("Starting producer... sending to topic:", KAFKA_TOPIC)
+    print("Starting producer... creating topic:", KAFKA_TOPIC)
+    create_kafka_topic()  # Add topic creation before starting the producer
+    print("Starting to send messages...")
     while True:
         try:
             data = generate_market_data()

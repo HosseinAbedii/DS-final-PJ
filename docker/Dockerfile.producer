@@ -5,6 +5,6 @@ WORKDIR /app
 COPY src/producer.py .
 COPY requirements.txt .
 
-RUN pip install kafka-python numpy
+RUN pip install kafka-python numpy kafka-python[admin]
 
 CMD ["python", "producer.py"]
