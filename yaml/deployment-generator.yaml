@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: generator
-        image: data-generator:latest  
+        image: data-generator:latest
+        imagePullPolicy: Never  # This ensures it uses the local image
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
