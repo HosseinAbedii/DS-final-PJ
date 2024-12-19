@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: generator
-        image: data-generator:latest
-        imagePullPolicy: IfNotPresent   # This ensures it uses the local image
+        image: hosseinabedi/data-generator:latest  # Replace 'yourusername' with your Docker Hub username
+        imagePullPolicy: IfNotPresent  # This will use local image if exists, otherwise pull from Docker Hub
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
