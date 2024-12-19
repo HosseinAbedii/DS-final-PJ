@@ -1,37 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: generator-deployment
+  name: data-generator
+  labels:
+    app: data-generator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: generator
+      app: data-generator
   template:
     metadata:
       labels:
-        app: generator
+        app: data-generator
     spec:
       containers:
       - name: generator
-        image: generator:latest  # Use local image
-        imagePullPolicy: IfNotPresent  # Use local image if available
-        ports:
-        - containerPort: 5000  # Changed from 9092 to 5000
-        command: ["python3", "/app/generator.py"]
+        image: data-generator:latest
+        imagePullPolicy: Never
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
         - name: PYTHONUNBUFFERED
           value: "1"
-        volumeMounts:
-        - name: src-files
-          mountPath: /app
-      volumes:
-      - name: src-files
-        hostPath:
-          path: ./src  # Changed to relative path
-          type: Directory
 ---
 apiVersion: v1
 kind: Service

@@ -2,11 +2,9 @@ FROM python:3.8-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y gcc python3-dev
-
-COPY requirements.txt .
-RUN pip install kafka-python requests numpy psutil
-
 COPY src/generator.py .
+COPY requirements.txt .
+
+RUN pip install -r requirements.txt
 
 CMD ["python", "generator.py"]
