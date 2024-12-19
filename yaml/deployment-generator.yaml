@@ -14,10 +14,19 @@ spec:
     spec:
       containers:
       - name: generator
-        image: your-dockerhub-username/generator:latest
+        image: generator:latest  # Use local image
+        imagePullPolicy: IfNotPresent  # Use local image if available
         ports:
-        - containerPort: 9092
-        command: ["sh", "-c", "python /app/generator.py"]
+        - containerPort: 5000  # Changed from 9092 to 5000
+        command: ["python3", "/app/generator.py"]
+        volumeMounts:
+        - name: src-files
+          mountPath: /app
+      volumes:
+      - name: src-files
+        hostPath:
+          path: ./src  # Changed to relative path
+          type: Directory
 ---
 apiVersion: v1
 kind: Service
@@ -28,5 +37,5 @@ spec:
     app: generator
   ports:
     - protocol: TCP
-      port: 9092
-      targetPort: 9092
+      port: 5000  # Changed from 9092 to 5000
+      targetPort: 5000  # Changed from 9092 to 5000

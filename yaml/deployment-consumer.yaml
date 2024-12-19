@@ -14,10 +14,19 @@ spec:
     spec:
       containers:
       - name: consumer
-        image: your-dockerhub-username/consumer:latest
+        image: consumer:latest  # Use local image
+        imagePullPolicy: IfNotPresent  # Use local image if available
         ports:
-        - containerPort: 9092
-        command: ["sh", "-c", "python /app/consumer.py"]
+        - containerPort: 5001  # Changed from 9092 to 5001
+        command: ["python3", "/app/consumer.py"]
+        volumeMounts:
+        - name: src-files
+          mountPath: /app
+      volumes:
+      - name: src-files
+        hostPath:
+          path: /src
+          type: Directory
 ---
 apiVersion: v1
 kind: Service
@@ -28,5 +37,5 @@ spec:
     app: consumer
   ports:
     - protocol: TCP
-      port: 9092
-      targetPort: 9092
+      port: 5001  # Changed from 9092 to 5001
+      targetPort: 5001  # Changed from 9092 to 5001
