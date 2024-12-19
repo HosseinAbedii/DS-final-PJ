@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: generator-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: generator
+  template:
+    metadata:
+      labels:
+        app: generator
+    spec:
+      containers:
+      - name: generator
+        image: your-dockerhub-username/generator:latest
+        ports:
+        - containerPort: 9092
+        command: ["sh", "-c", "python /app/generator.py"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: generator-service
+spec:
+  selector:
+    app: generator
+  ports:
+    - protocol: TCP
+      port: 9092
+      targetPort: 9092

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumer
+  template:
+    metadata:
+      labels:
+        app: consumer
+    spec:
+      containers:
+      - name: consumer
+        image: your-dockerhub-username/consumer:latest
+        ports:
+        - containerPort: 9092
+        command: ["sh", "-c", "python /app/consumer.py"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consumer-service
+spec:
+  selector:
+    app: consumer
+  ports:
+    - protocol: TCP
+      port: 9092
+      targetPort: 9092
