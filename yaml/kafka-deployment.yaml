@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: kafka
-        image: bitnami/kafka:3.9.0  # Updated to latest version
+        image: bitnami/kafka:latest
         imagePullPolicy: IfNotPresent  # Use local image if available
         ports:
         - containerPort: 9092
@@ -26,9 +26,11 @@ spec:
         - name: KAFKA_CFG_ZOOKEEPER_CONNECT
           value: "zookeeper:2181"
         - name: KAFKA_CFG_ADVERTISED_LISTENERS
-          value: PLAINTEXT://kafka:9092
+          value: "PLAINTEXT://kafka:9092"
         - name: ALLOW_PLAINTEXT_LISTENER
           value: "yes"
+        - name: KAFKA_CFG_LISTENERS
+          value: "PLAINTEXT://:9092"
 ---
 apiVersion: v1
 kind: Service
