@@ -16,8 +16,7 @@ spec:
     spec:
       containers:
       - name: generator
-        image: localhost:5000/data-generator:latest  # Updated image reference
-        imagePullPolicy: Always  # Changed to Always to ensure latest image
+        image: data-generator:latest  
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
