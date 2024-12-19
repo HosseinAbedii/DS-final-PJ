@@ -3,48 +3,85 @@ kind: Deployment
 metadata:
   name: spark-master
   labels:
-    app: "spark-master"
+    app: spark
+    role: master
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "spark-master"
+      app: spark
+      role: master
   template:
     metadata:
       labels:
-        app: "spark-master"
+        app: spark
+        role: master
     spec:
       containers:
       - name: spark-master
         image: bitnami/spark:3.5.3
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 7077
-        - containerPort: 8080
         env:
         - name: SPARK_MODE
-          value: "master"
+          value: master
+        - name: SPARK_MASTER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: SPARK_MASTER_PORT
+          value: "7077"
+        - name: SPARK_MASTER_WEBUI_PORT
+          value: "8080"
+        - name: SPARK_NO_DAEMONIZE
+          value: "true"
         - name: SPARK_RPC_AUTHENTICATION_ENABLED
           value: "no"
         - name: SPARK_RPC_ENCRYPTION_ENABLED
           value: "no"
         - name: SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED
           value: "no"
-        - name: SPARK_SSL_ENABLED
-          value: "no"
+        ports:
+        - containerPort: 7077
+          name: master-port
+        - containerPort: 8080
+          name: webui-port
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 20
+        volumeMounts:
+        - name: spark-logs
+          mountPath: /opt/bitnami/spark/logs
+      volumes:
+      - name: spark-logs
+        emptyDir: {}
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: spark-master
+  labels:
+    app: spark
+    role: master
 spec:
   selector:
-    app: "spark-master"
+    app: spark
+    role: master
+  type: NodePort
   ports:
-  - name: spark
-    port: 7077
-    targetPort: 7077
-  - name: web
+  - name: spark-ui
     port: 8080
     targetPort: 8080
+    nodePort: 30080  # External port accessible from outside the cluster
+  - name: spark-master
+    port: 7077
+    targetPort: 7077
+    nodePort: 30077  # External port for RPC
