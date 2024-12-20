@@ -33,6 +33,11 @@ spec:
           value: "spark://spark-master:7077"
         - name: REDIS_HOST
           value: "redis"
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            cd /app && \
+            spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 consumer.py
       volumes:
       - name: app-code
         hostPath:

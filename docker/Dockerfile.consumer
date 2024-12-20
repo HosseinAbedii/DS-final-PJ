@@ -6,10 +6,10 @@ WORKDIR /app
 # Install all required dependencies
 RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask flask-cors websockets
 
-# Create necessary directories
+# Create necessary directories and set permissions
 RUN mkdir -p /app/logs && \
     mkdir -p /root/.ivy2 && \
-    chmod -R 777 /app/logs
+    chmod -R 777 /app/logs && \
+    chmod -R 777 /root/.ivy2
 
-# Keep container running and let deployment handle spark-submit
-CMD ["tail", "-f", "/dev/null"]
+# Don't set CMD here as it will be overridden by deployment command
