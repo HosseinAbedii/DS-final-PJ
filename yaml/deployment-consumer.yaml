@@ -16,18 +16,10 @@ spec:
     spec:
       containers:
       - name: spark-consumer
-        image: bitnami/spark:3.5.3
-        command: ["/bin/bash", "-c"]
-        args:
-          - |
-            pip install kafka-python pyspark requests numpy psutil &&
-            spark-submit \
-            --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 \
-            /app/consumer.py
-        lifecycle:
-          postStart:
-            exec:
-              command: ["/bin/sh", "-c", "mkdir -p /app/logs && chmod 777 /app/logs"]
+        image: spark-consumer:latest  # Changed to use custom image
+        ports:
+        - containerPort: 8765  # WebSocket port
+        - containerPort: 5000  # Flask API port
         volumeMounts:
         - name: app-code
           mountPath: /app
@@ -38,6 +30,8 @@ spec:
           value: "kafka:9092"
         - name: SPARK_MASTER
           value: "spark://spark-master:7077"
+        - name: REDIS_HOST
+          value: "redis"
       volumes:
       - name: app-code
         hostPath:
@@ -51,9 +45,16 @@ kind: Service
 metadata:
   name: consumer-service
 spec:
+  type: NodePort  # Change to NodePort to access WebSocket
   selector:
     app: consumer
   ports:
     - protocol: TCP
       port: 5001  # Changed from 9092 to 5001
       targetPort: 5001  # Changed from 9092 to 5001
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30500  # API port
+    - port: 8765
+      targetPort: 8765
+      nodePort: 30765  # External port for WebSocket
