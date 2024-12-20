@@ -4,7 +4,6 @@ USER root
 
 # Create necessary directories
 RUN mkdir -p /home/pc/finall-v1/DS-final-PJ/src && \
-    mkdir -p /home/pc/finall-v1/DS-final-PJ/logs && \
     mkdir -p /root/.ivy2
 
 # Set permissions
@@ -21,7 +20,3 @@ WORKDIR /home/pc/finall-v1/DS-final-PJ/src
 
 # Copy the entire src directory
 COPY src/ /home/pc/finall-v1/DS-final-PJ/src/
-
-# Set proper permissions for all files
-RUN chmod -R 755 /home/pc/finall-v1/DS-final-PJ && \
-    ls -la /home/pc/finall-v1/DS-final-PJ  # This will show us the files in the container for debugging

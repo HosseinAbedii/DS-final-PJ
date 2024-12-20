@@ -24,8 +24,6 @@ spec:
         volumeMounts:
         - name: src-volume
           mountPath: /home/pc/finall-v1/DS-final-PJ/src
-        - name: log-volume
-          mountPath: /home/pc/finall-v1/DS-final-PJ/logs
         env:
         - name: KAFKA_BROKER
           value: "kafka:9092"
@@ -46,9 +44,6 @@ spec:
       - name: src-volume
         hostPath:
           path: /home/pc/finall-v1/DS-final-PJ/src
-      - name: log-volume
-        hostPath:
-          path: /home/pc/finall-v1/DS-final-PJ/logs
 ---
 apiVersion: v1
 kind: Service
