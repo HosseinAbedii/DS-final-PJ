@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: spark-consumer
-        image: spark-consumer:latest  # Changed to use custom image
+        image: hosseinabedi/spark-consumer:latest  # Changed to use Docker Hub image
+        imagePullPolicy: IfNotPresent  # Will use local image if exists
         ports:
         - containerPort: 8765  # WebSocket port
         - containerPort: 5000  # Flask API port
