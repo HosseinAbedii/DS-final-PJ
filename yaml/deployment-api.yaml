@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: flask-api
-        image: your-dockerhub-username/flask-api:latest  # Replace with your image
+        image: hosseinabedi/flask-api:latest  # Replace with your image
         imagePullPolicy: Always
         ports:
         - containerPort: 5000
