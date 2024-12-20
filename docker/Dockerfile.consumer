@@ -4,7 +4,7 @@ USER root
 WORKDIR /app
 
 # Install all required dependencies
-RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask websockets
+RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask flask-cors websockets
 
 # Create necessary directories
 RUN mkdir -p /app/logs && \
