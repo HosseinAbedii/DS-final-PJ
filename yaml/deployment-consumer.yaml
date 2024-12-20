@@ -45,16 +45,15 @@ kind: Service
 metadata:
   name: consumer-service
 spec:
-  type: NodePort  # Change to NodePort to access WebSocket
+  type: LoadBalancer  # Changed from NodePort to LoadBalancer
   selector:
-    app: consumer
+    app: spark-consumer  # Updated to match deployment labels
   ports:
-    - protocol: TCP
-      port: 5001  # Changed from 9092 to 5001
-      targetPort: 5001  # Changed from 9092 to 5001
-    - port: 5000
+    - name: api
+      port: 5000
       targetPort: 5000
-      nodePort: 30500  # API port
-    - port: 8765
+      nodePort: 30500
+    - name: websocket
+      port: 8765
       targetPort: 8765
-      nodePort: 30765  # External port for WebSocket
+      nodePort: 30765
