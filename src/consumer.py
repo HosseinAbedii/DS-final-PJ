@@ -6,7 +6,6 @@ import asyncio
 import json
 import redis
 from datetime import datetime, timedelta
-import logging
 
 # Redis connection
 redis_client = redis.Redis(host='redis', port=6379, db=0)
@@ -87,12 +86,6 @@ def foreach_batch_function(df, epoch_id):
             
         # Broadcast via WebSocket
         asyncio.create_task(broadcast_message(record))
-
-    # Log to file
-    with open("/app/logs/financial_data.log", "a") as f:
-        f.write(f"\n--- Batch {epoch_id} ---\n")
-        f.write(json.dumps(data_list))
-        f.write("\n")
 
 # Start WebSocket server
 async def start_websocket_server():

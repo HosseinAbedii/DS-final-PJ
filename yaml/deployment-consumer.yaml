@@ -22,8 +22,8 @@ spec:
         - containerPort: 8765  # WebSocket port
         - containerPort: 5000  # Flask API port
         volumeMounts:
-        - name: log-volume
-          mountPath: /app/logs
+        - name: src-volume
+          mountPath: /home/pc/finall-v1/DS-final-PJ/src
         env:
         - name: KAFKA_BROKER
           value: "kafka:9092"
@@ -34,12 +34,16 @@ spec:
         command: ["/bin/bash", "-c"]
         args:
           - |
-            cd /app && \
-            spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 consumer.py
+            echo "Current directory contents:" && \
+            ls -la /home/pc/finall-v1/DS-final-PJ/src && \
+            spark-submit \
+              --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 \
+              --master local[*] \
+              /home/pc/finall-v1/DS-final-PJ/src/consumer.py
       volumes:
-      - name: log-volume
+      - name: src-volume
         hostPath:
-          path: /home/pc/finall-v1/DS-final-PJ/logs
+          path: /home/pc/finall-v1/DS-final-PJ/src
 ---
 apiVersion: v1
 kind: Service
