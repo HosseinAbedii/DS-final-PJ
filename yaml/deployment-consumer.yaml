@@ -36,10 +36,10 @@ spec:
       volumes:
       - name: app-code
         hostPath:
-          path: /c/Users/abedi/OneDrive/Documents/GitHub/DS-final-PJ/src
+          path: ../src
       - name: log-volume
         hostPath:
-          path: /c/Users/abedi/OneDrive/Documents/GitHub/DS-final-PJ/logs
+          path: ../logs
 ---
 apiVersion: v1
 kind: Service
