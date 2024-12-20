@@ -22,8 +22,6 @@ spec:
         - containerPort: 8765  # WebSocket port
         - containerPort: 5000  # Flask API port
         volumeMounts:
-        - name: app-code
-          mountPath: /app
         - name: log-volume
           mountPath: /app/logs
         env:
@@ -39,9 +37,6 @@ spec:
             cd /app && \
             spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 consumer.py
       volumes:
-      - name: app-code
-        hostPath:
-          path: /home/pc/finall-v1/DS-final-PJ/src
       - name: log-volume
         hostPath:
           path: /home/pc/finall-v1/DS-final-PJ/logs

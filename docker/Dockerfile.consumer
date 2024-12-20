@@ -6,9 +6,14 @@ WORKDIR /app
 # Install all required dependencies
 RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask flask-cors websockets
 
-# Create necessary directories and set permissions
-RUN mkdir -p /home/pc/finall-v1/DS-final-PJ/logs /root/.ivy2 && \
-    chown -R root:root /home/pc/finall-v1/DS-final-PJ/logs /root/.ivy2 && \
-    chmod -R 755 /home/pc/finall-v1/DS-final-PJ/logs /root/.ivy2
+# Create necessary directories
+RUN mkdir -p /app/logs /root/.ivy2 && \
+    chmod -R 777 /app/logs /root/.ivy2
 
-# Don't set CMD here as it will be overridden by deployment command
+# Copy source files
+COPY src/consumer.py /app/
+COPY src/api.py /app/
+COPY src/index.html /app/
+
+# Set proper permissions
+RUN chmod -R 755 /app
