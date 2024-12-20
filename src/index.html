@@ -54,11 +54,16 @@
         const historicalContainer = document.getElementById('historical-data');
         const liveContainer = document.getElementById('live-data');
 
+        // Use fixed IP address
+        const host = '192.168.220.128';
+        const wsPort = '30765';
+        const apiPort = '30500';
+
         // Function to load historical data
         async function loadHistoricalData() {
             const hours = document.getElementById('timeRange').value;
             try {
-                const response = await fetch(`/api/historical-data?hours=${hours}`);
+                const response = await fetch(`http://${host}:${apiPort}/api/historical-data?hours=${hours}`);
                 const data = await response.json();
                 
                 historicalContainer.innerHTML = '';
@@ -89,7 +94,7 @@
         }
 
         // WebSocket connection for live data
-        const ws = new WebSocket('ws://localhost:8765');
+        const ws = new WebSocket(`ws://${host}:${wsPort}`);
         
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
