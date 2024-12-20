@@ -43,10 +43,19 @@ df = df.selectExpr("CAST(value AS STRING)")
 # Parse the JSON data and apply the schema
 df = df.select(from_json(col("value"), schema).alias("data")).select("data.*")
 
-# Print the data to the terminal
+# Function to write each batch of data to the log file
+def foreach_batch_function(df, epoch_id):
+    # Convert the batch to a string format
+    log_entries = df.select("*").toPandas().to_string()
+    # Append to log file with timestamp
+    with open("/app/logs/financial_data.log", "a") as f:
+        f.write(f"\n--- Batch {epoch_id} ---\n")
+        f.write(log_entries)
+        f.write("\n")
+
+# Write the data to a log file
 query = df.writeStream \
-    .outputMode("append") \
-    .format("console") \
+    .foreachBatch(foreach_batch_function) \
     .start()
 
 query.awaitTermination()

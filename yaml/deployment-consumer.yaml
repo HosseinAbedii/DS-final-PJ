@@ -24,9 +24,15 @@ spec:
             spark-submit \
             --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 \
             /app/consumer.py
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "mkdir -p /app/logs && chmod 777 /app/logs"]
         volumeMounts:
         - name: app-code
           mountPath: /app
+        - name: log-volume
+          mountPath: /app/logs
         env:
         - name: KAFKA_BROKER
           value: "kafka:9092"
@@ -36,6 +42,9 @@ spec:
       - name: app-code
         hostPath:
           path: /c/Users/abedi/OneDrive/Documents/GitHub/DS-final-PJ/src
+      - name: log-volume
+        hostPath:
+          path: /c/Users/abedi/OneDrive/Documents/GitHub/DS-final-PJ/logs
 ---
 apiVersion: v1
 kind: Service
