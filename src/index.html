@@ -114,10 +114,10 @@
         const historicalStats = document.getElementById('historical-stats');
         const liveStats = document.getElementById('live-stats');
 
-        // Use fixed IP address
-        const host = '192.168.220.128';
-        const wsPort = '30765';
-        const apiPort = '30500';
+        // Update to use Minikube
+        const host = window.location.hostname; // This will work with Minikube
+        const wsPort = '30765';  // WebSocket NodePort
+        const apiPort = '30500';  // API NodePort
 
         function updateChart(data) {
             const chartData = data.slice(0, 50).reverse();
@@ -173,6 +173,7 @@
                 `).join('');
         }
 
+        // Update API endpoint
         async function loadHistoricalData() {
             const hours = document.getElementById('timeRange').value;
             try {
@@ -218,8 +219,8 @@
             return div;
         }
 
-        // WebSocket connection for live data
-        const ws = new WebSocket(`ws://${host}:${wsPort}`);
+        // Update WebSocket connection to use Nginx path
+        const ws = new WebSocket(`ws://${host}:${wsPort}/ws`);
         
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);

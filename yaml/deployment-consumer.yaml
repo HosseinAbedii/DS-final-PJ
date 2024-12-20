@@ -31,9 +31,11 @@ kind: Service
 metadata:
   name: spark-consumer-service
 spec:
+  type: NodePort  # Change to NodePort
   selector:
     app: spark-consumer
   ports:
     - protocol: TCP
       port: 8765
       targetPort: 8765
+      nodePort: 30765  # Fixed NodePort for WebSocket
