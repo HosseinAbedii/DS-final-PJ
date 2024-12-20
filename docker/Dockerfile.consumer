@@ -1,19 +1,27 @@
 FROM bitnami/spark:3.5.3
 
 USER root
-WORKDIR /app
-
-# Install all required dependencies
-RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask flask-cors websockets
 
 # Create necessary directories
-RUN mkdir -p /app/logs /root/.ivy2 && \
-    chmod -R 777 /app/logs /root/.ivy2
+RUN mkdir -p /home/pc/finall-v1/DS-final-PJ/src && \
+    mkdir -p /home/pc/finall-v1/DS-final-PJ/logs && \
+    mkdir -p /root/.ivy2
 
-# Copy source files
-COPY src/consumer.py /app/
-COPY src/api.py /app/
-COPY src/index.html /app/
+# Set permissions
+RUN chmod -R 777 /home/pc/finall-v1/DS-final-PJ && \
+    chmod -R 777 /root/.ivy2
 
-# Set proper permissions
-RUN chmod -R 755 /app
+# Install dependencies
+RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask flask-cors websockets
+
+# Pre-download Spark packages
+RUN spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 --version
+
+WORKDIR /home/pc/finall-v1/DS-final-PJ/src
+
+# Copy the entire src directory
+COPY src/ /home/pc/finall-v1/DS-final-PJ/src/
+
+# Set proper permissions for all files
+RUN chmod -R 755 /home/pc/finall-v1/DS-final-PJ && \
+    ls -la /home/pc/finall-v1/DS-final-PJ  # This will show us the files in the container for debugging
