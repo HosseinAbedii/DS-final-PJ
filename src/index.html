@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Financial Data Dashboard</title>
+    <style>
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        #historical-container, #live-container {
+            flex: 1;
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .notification { background-color: #e6f3ff; }
+        .data-item { border-bottom: 1px solid #eee; }
+        .notification, .data-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        #controls {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Financial Data Dashboard</h1>
+    
+    <div id="controls">
+        <button onclick="loadHistoricalData()">Load Historical Data</button>
+        <select id="timeRange">
+            <option value="1">Last 1 hour</option>
+            <option value="6">Last 6 hours</option>
+            <option value="12">Last 12 hours</option>
+            <option value="24">Last 24 hours</option>
+        </select>
+    </div>
+
+    <div class="container">
+        <div id="historical-container">
+            <h2>Historical Data</h2>
+            <div id="historical-data"></div>
+        </div>
+        <div id="live-container">
+            <h2>Live Data</h2>
+            <div id="live-data"></div>
+        </div>
+    </div>
+
+    <script>
+        const historicalContainer = document.getElementById('historical-data');
+        const liveContainer = document.getElementById('live-data');
+
+        // Function to load historical data
+        async function loadHistoricalData() {
+            const hours = document.getElementById('timeRange').value;
+            try {
+                const response = await fetch(`/api/historical-data?hours=${hours}`);
+                const data = await response.json();
+                
+                historicalContainer.innerHTML = '';
+                data.forEach(record => {
+                    const div = createDataElement(record);
+                    historicalContainer.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
+        }
+
+        // Function to create data elements
+        function createDataElement(data) {
+            const div = document.createElement('div');
+            if (data.type === 'notification') {
+                div.className = 'notification';
+                div.innerHTML = `${data.message} - ${new Date(data.timestamp).toLocaleString()}`;
+            } else {
+                div.className = 'data-item';
+                div.innerHTML = `
+                    ${data.stock_symbol}: $${data.price} 
+                    <br>Volume: ${data.volume}
+                    <br>Time: ${new Date(data.timestamp).toLocaleString()}
+                `;
+            }
+            return div;
+        }
+
+        // WebSocket connection for live data
+        const ws = new WebSocket('ws://localhost:8765');
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const div = createDataElement(data);
+            liveContainer.insertBefore(div, liveContainer.firstChild);
+        };
+
+        ws.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+
+        // Load historical data on page load
+        loadHistoricalData();
+    </script>
+</body>
+</html>
