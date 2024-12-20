@@ -1,14 +1,17 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 import redis
 import json
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 redis_client = redis.Redis(host='redis', port=6379, db=0)
 
 @app.route('/')
 def home():
-    return app.send_static_file('index.html')
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'index.html')
 
 @app.route('/api/historical-data')
 def get_historical_data():
