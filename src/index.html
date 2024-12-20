@@ -2,32 +2,84 @@
 <html>
 <head>
     <title>Financial Data Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .container {
             display: flex;
             gap: 20px;
+            margin: 20px;
         }
         #historical-container, #live-container {
             flex: 1;
-            height: 500px;
+            height: 600px;
             overflow-y: auto;
             border: 1px solid #ccc;
-            padding: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .notification { background-color: #e6f3ff; }
-        .data-item { border-bottom: 1px solid #eee; }
+        .chart-container {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .notification { 
+            background-color: #e6f3ff;
+            border-left: 4px solid #1a73e8;
+        }
+        .data-item { 
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s ease;
+        }
+        .price-up {
+            color: #22c55e;
+            background-color: rgba(34, 197, 94, 0.1);
+        }
+        .price-down {
+            color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
         .notification, .data-item {
-            padding: 10px;
-            margin: 5px 0;
+            padding: 15px;
+            margin: 8px 0;
             border-radius: 5px;
         }
         #controls {
-            margin: 20px 0;
+            margin: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        select, button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-right: 10px;
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1557b0;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
     </style>
 </head>
 <body>
-    <h1>Financial Data Dashboard</h1>
+    <h1 style="margin: 20px;">Financial Data Dashboard</h1>
     
     <div id="controls">
         <button onclick="loadHistoricalData()">Load Historical Data</button>
@@ -42,24 +94,85 @@
     <div class="container">
         <div id="historical-container">
             <h2>Historical Data</h2>
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+            <div class="stats" id="historical-stats"></div>
             <div id="historical-data"></div>
         </div>
         <div id="live-container">
             <h2>Live Data</h2>
+            <div class="stats" id="live-stats"></div>
             <div id="live-data"></div>
         </div>
     </div>
 
     <script>
+        let priceChart;
         const historicalContainer = document.getElementById('historical-data');
         const liveContainer = document.getElementById('live-data');
+        const historicalStats = document.getElementById('historical-stats');
+        const liveStats = document.getElementById('live-stats');
 
         // Use fixed IP address
         const host = '192.168.220.128';
         const wsPort = '30765';
         const apiPort = '30500';
 
-        // Function to load historical data
+        function updateChart(data) {
+            const chartData = data.slice(0, 50).reverse();
+            
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => new Date(d.timestamp).toLocaleTimeString()),
+                    datasets: [{
+                        label: 'Price',
+                        data: chartData.map(d => d.price),
+                        borderColor: '#1a73e8',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateStats(data, containerId) {
+            const container = document.getElementById(containerId);
+            if (data.length === 0) return;
+
+            const prices = data.map(d => d.price);
+            const volumes = data.map(d => d.volume);
+            
+            const stats = {
+                'Average Price': `$${(prices.reduce((a,b) => a + b, 0) / prices.length).toFixed(2)}`,
+                'Highest Price': `$${Math.max(...prices).toFixed(2)}`,
+                'Lowest Price': `$${Math.min(...prices).toFixed(2)}`,
+                'Total Volume': volumes.reduce((a,b) => a + b, 0).toLocaleString()
+            };
+
+            container.innerHTML = Object.entries(stats)
+                .map(([key, value]) => `
+                    <div class="stat-card">
+                        <div style="font-size: 0.9em; color: #666;">${key}</div>
+                        <div style="font-size: 1.2em; font-weight: bold;">${value}</div>
+                    </div>
+                `).join('');
+        }
+
         async function loadHistoricalData() {
             const hours = document.getElementById('timeRange').value;
             try {
@@ -67,6 +180,9 @@
                 const data = await response.json();
                 
                 historicalContainer.innerHTML = '';
+                updateChart(data);
+                updateStats(data, 'historical-stats');
+                
                 data.forEach(record => {
                     const div = createDataElement(record);
                     historicalContainer.appendChild(div);
@@ -76,18 +192,27 @@
             }
         }
 
-        // Function to create data elements
         function createDataElement(data) {
             const div = document.createElement('div');
             if (data.type === 'notification') {
                 div.className = 'notification';
                 div.innerHTML = `${data.message} - ${new Date(data.timestamp).toLocaleString()}`;
             } else {
-                div.className = 'data-item';
+                const priceChange = data.closing_price - data.opening_price;
+                const priceChangeClass = priceChange >= 0 ? 'price-up' : 'price-down';
+                div.className = `data-item ${priceChangeClass}`;
                 div.innerHTML = `
-                    ${data.stock_symbol}: $${data.price} 
-                    <br>Volume: ${data.volume}
-                    <br>Time: ${new Date(data.timestamp).toLocaleString()}
+                    <strong>${data.stock_symbol}</strong>
+                    <div>Price: $${data.price.toFixed(2)} 
+                        <span style="margin-left: 10px;">
+                            ${(priceChange >= 0 ? '▲' : '▼')} 
+                            ${Math.abs(priceChange).toFixed(2)}
+                        </span>
+                    </div>
+                    <div>Volume: ${data.volume.toLocaleString()}</div>
+                    <div>Time: ${new Date(data.timestamp).toLocaleString()}</div>
+                    ${data.sentiment_score ? 
+                        `<div>Sentiment: ${data.sentiment_score.toFixed(2)}</div>` : ''}
                 `;
             }
             return div;
@@ -100,6 +225,19 @@
             const data = JSON.parse(event.data);
             const div = createDataElement(data);
             liveContainer.insertBefore(div, liveContainer.firstChild);
+            
+            // Update live stats with last 50 records
+            const liveData = Array.from(liveContainer.children)
+                .slice(0, 50)
+                .map(el => {
+                    try {
+                        return JSON.parse(el.dataset.record);
+                    } catch {
+                        return null;
+                    }
+                })
+                .filter(d => d);
+            updateStats(liveData, 'live-stats');
         };
 
         ws.onerror = function(error) {
