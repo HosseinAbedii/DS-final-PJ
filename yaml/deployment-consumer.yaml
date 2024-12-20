@@ -16,49 +16,24 @@ spec:
     spec:
       containers:
       - name: spark-consumer
-        image: hosseinabedi/spark-consumer:latest  # Changed to use Docker Hub image
-        imagePullPolicy: IfNotPresent  # Will use local image if exists
+        image: hosseinabedi/spark-consumer:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+        - name: PYTHONUNBUFFERED
+          value: "1"
         ports:
         - containerPort: 8765  # WebSocket port
-        - containerPort: 5000  # Flask API port
-        volumeMounts:
-        - name: src-volume
-          mountPath: /home/pc/finall-v1/DS-final-PJ/src
-        env:
-        - name: KAFKA_BROKER
-          value: "kafka:9092"
-        - name: SPARK_MASTER
-          value: "spark://spark-master:7077"
-        - name: REDIS_HOST
-          value: "redis"
-        command: ["/bin/bash", "-c"]
-        args:
-          - |
-            echo "Current directory contents:" && \
-            ls -la /home/pc/finall-v1/DS-final-PJ/src && \
-            spark-submit \
-              --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 \
-              --master local[*] \
-              /home/pc/finall-v1/DS-final-PJ/src/consumer.py
-      volumes:
-      - name: src-volume
-        hostPath:
-          path: /home/pc/finall-v1/DS-final-PJ/src
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: consumer-service
+  name: spark-consumer-service
 spec:
-  type: LoadBalancer  # Changed from NodePort to LoadBalancer
   selector:
-    app: spark-consumer  # Updated to match deployment labels
+    app: spark-consumer
   ports:
-    - name: api
-      port: 5000
-      targetPort: 5000
-      nodePort: 30500
-    - name: websocket
+    - protocol: TCP
       port: 8765
       targetPort: 8765
-      nodePort: 30765

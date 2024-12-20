@@ -1,22 +1,21 @@
-FROM bitnami/spark:3.5.3
+FROM apache/spark-py:3.5.3
 
 USER root
+WORKDIR /app
 
-# Create necessary directories
-RUN mkdir -p /home/pc/finall-v1/DS-final-PJ/src && \
-    mkdir -p /root/.ivy2
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install -r requirements.txt kafka-python websockets redis
 
-# Set permissions
-RUN chmod -R 777 /home/pc/finall-v1/DS-final-PJ && \
-    chmod -R 777 /root/.ivy2
+# Copy the consumer script
+COPY src/consumer.py .
 
-# Install dependencies
-RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas redis flask flask-cors websockets
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV SPARK_HOME=/opt/spark
 
-# Pre-download Spark packages
-RUN spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 --version
+# Switch back to spark user
+USER spark
 
-WORKDIR /home/pc/finall-v1/DS-final-PJ/src
-
-# Copy the entire src directory
-COPY src/ /home/pc/finall-v1/DS-final-PJ/src/
+# Add spark-submit command
+CMD ["/opt/spark/bin/spark-submit", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3", "--master", "local[*]", "--conf", "spark.driver.host=localhost", "--conf", "spark.driver.bindAddress=0.0.0.0", "/app/consumer.py"]
