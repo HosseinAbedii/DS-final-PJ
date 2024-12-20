@@ -1,15 +1,15 @@
-FROM bitnami/spark:3.5.3  
+FROM bitnami/spark:3.5.3
 
 USER root
 WORKDIR /app
 
-# Add Spark dependencies
-RUN pip install kafka-python 'pyspark==3.5.3'  # Fixed to correct latest version
+# Install all required dependencies
+RUN pip install kafka-python pyspark==3.5.3 requests numpy psutil pandas
 
-# Create the ivy directory for spark-submit package downloads
-RUN mkdir -p /root/.ivy2
+# Create necessary directories
+RUN mkdir -p /app/logs && \
+    mkdir -p /root/.ivy2 && \
+    chmod -R 777 /app/logs
 
-COPY src/consumer.py .
-
-# Default command is now just the script - deployment will override with spark-submit
-CMD ["python", "consumer.py"]
+# Keep container running and let deployment handle spark-submit
+CMD ["tail", "-f", "/dev/null"]
