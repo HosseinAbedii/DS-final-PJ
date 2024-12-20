@@ -36,10 +36,10 @@ spec:
       volumes:
       - name: app-code
         hostPath:
-          path: ../src
+          path: /home/pc/finall-v1/DS-final-PJ/src
       - name: log-volume
         hostPath:
-          path: ../logs
+          path: /home/pc/finall-v1/DS-final-PJ/logs
 ---
 apiVersion: v1
 kind: Service
