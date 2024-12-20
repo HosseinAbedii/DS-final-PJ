@@ -2,9 +2,9 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY src/api.py /app/
-COPY src/index.html /app/
-COPY requirements-api.txt /app/
+COPY src/api.py .
+COPY src/index.html .
+COPY requirements-api.txt .
 
 RUN pip install -r requirements-api.txt
 
