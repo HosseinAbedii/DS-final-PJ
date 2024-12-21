@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import logging
 from datetime import datetime
 import signal
@@ -8,6 +9,7 @@ from typing import Dict, Any
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configure logging
 logging.basicConfig(
@@ -54,6 +56,25 @@ DATA_SCHEMAS = {
             'stock_symbol': str,
             'sentiment_score': (int, float),
             'sentiment_magnitude': (int, float)
+        }
+    },
+    'market_data': {
+        'required': ['data_type', 'timestamp', 'stock_symbol', 'market_cap', 'pe_ratio'],
+        'types': {
+            'data_type': str,
+            'timestamp': (int, float),
+            'stock_symbol': str,
+            'market_cap': (int, float),
+            'pe_ratio': (int, float)
+        }
+    },
+    'economic_indicator': {
+        'required': ['data_type', 'timestamp', 'indicator_name', 'value'],
+        'types': {
+            'data_type': str,
+            'timestamp': (int, float),
+            'indicator_name': str,
+            'value': (int, float)
         }
     }
 }
@@ -152,15 +173,28 @@ def ingest_data():
 
             data_type = data.get('data_type', 'stock')
             logging.info(f"Received valid {data_type} data: {converted_data}")
+            
+            # Broadcast the validated data to all connected clients
+            socketio.emit(f'data_{data_type}', converted_data)
+            
             return jsonify({
                 "status": "success",
-                "message": f"Successfully ingested {data_type} data",
+                "message": f"Successfully ingested and broadcast {data_type} data",
                 "data": converted_data
             }), 200
             
         except Exception as e:
             logging.error(f"Error processing request: {e}")
             return jsonify({"error": str(e)}), 500
+
+@socketio.on('connect')
+def handle_connect():
+    logging.info(f"Client connected: {request.sid}")
+    emit('connection_status', {'status': 'connected'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logging.info(f"Client disconnected: {request.sid}")
 
 @app.errorhandler(405)
 def method_not_allowed(e):
@@ -185,6 +219,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
     
-    # Start the server
-    logging.info("Starting ingestion server...")
-    app.run(host='0.0.0.0', port=5000)
+    # Start the server with SocketIO
+    logging.info("Starting ingestion server with WebSocket support...")
+    socketio.run(app, host='0.0.0.0', port=5000)

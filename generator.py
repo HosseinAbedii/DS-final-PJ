@@ -132,7 +132,8 @@ def generate_additional_data():
             "data_type": "economic_indicator",
             "timestamp": timestamp,
             "indicator_name": "GDP Growth Rate",
-            "value": random.uniform(-5, 5)
+            "value": random.uniform(-5, 5),
+            "timestamp": timestamp
         }
     return data
 
