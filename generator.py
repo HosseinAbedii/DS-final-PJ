@@ -1,6 +1,8 @@
 import time
 import random
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import json
 import psutil
 import os
@@ -16,6 +18,19 @@ stocks = ["AAPL", "GOOGL", "AMZN", "MSFT", "TSLA"]
 
 # API endpoint to send the generated data
 api_endpoint = "http://localhost:5000/ingest"
+
+# Configure retry strategy
+retry_strategy = Retry(
+    total=3,  # number of retries
+    backoff_factor=0.5,  # wait 0.5s * (2 ** retry) between retries
+    status_forcelist=[500, 502, 503, 504]  # HTTP status codes to retry on
+)
+
+# Create session with retry strategy
+session = requests.Session()
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
 
 
 def generate_data():
@@ -93,12 +108,21 @@ def generate_additional_data():
 
 def send_data(data):
     try:
-        response = requests.post(api_endpoint, data=json.dumps(
-            data), headers={"Content-Type": "application/json"})
-        if response.status_code != 200:
-            print(f"Failed to send data: {data}. Response: {response.text}")
+        response = session.post(
+            api_endpoint,
+            json=data,
+            headers={"Content-Type": "application/json"},
+            timeout=5  # 5 seconds timeout
+        )
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError as e:
+        print(f"Connection error: {e}. Is the server running at {api_endpoint}?")
+    except requests.exceptions.Timeout:
+        print(f"Request timed out while sending data to {api_endpoint}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending data: {e}")
     except Exception as e:
-        print(f"Error occurred: {e}")
+        print(f"Unexpected error: {e}")
 
 
 def send_additional_data():
