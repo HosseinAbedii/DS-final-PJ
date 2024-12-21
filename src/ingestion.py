@@ -1,5 +1,5 @@
 from kafka import KafkaProducer, KafkaAdminClient
-from kafka.admin import NewTopic  # Fix: Import NewTopic from kafka.admin
+from kafka.admin import NewTopic  
 import socketio
 import json
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 kafka_bootstrap_servers = ['kafka:9092']
 kafka_topic = 'financial_data'
 
-# Socket.IO client setup
+
 sio = socketio.Client()
 SERVER_URL = 'http://localhost:5000'
 
