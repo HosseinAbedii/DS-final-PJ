@@ -8,6 +8,9 @@ import psutil
 import os
 import numpy as np
 import threading
+import signal
+import sys
+from datetime import datetime
 
 # Set process affinity to a single core
 p = psutil.Process(os.getpid())
@@ -31,6 +34,34 @@ session = requests.Session()
 adapter = HTTPAdapter(max_retries=retry_strategy)
 session.mount("http://", adapter)
 session.mount("https://", adapter)
+
+
+def check_server():
+    """Check if the server is available"""
+    print(f"Checking server availability at {api_endpoint}...")
+    try:
+        response = session.get(api_endpoint.replace('/ingest', '/health'), timeout=2)
+        return response.status_code == 200
+    except:
+        return False
+
+def wait_for_server(max_attempts=5):
+    """Wait for server to become available with exponential backoff"""
+    attempt = 0
+    while attempt < max_attempts:
+        if check_server():
+            print("Server is available!")
+            return True
+        wait_time = 2 ** attempt
+        print(f"Server not available. Retrying in {wait_time} seconds... ({attempt + 1}/{max_attempts})")
+        time.sleep(wait_time)
+        attempt += 1
+    return False
+
+def graceful_shutdown(signum, frame):
+    """Handle graceful shutdown on CTRL+C"""
+    print("\nShutting down gracefully...")
+    sys.exit(0)
 
 
 def generate_data():
@@ -115,14 +146,13 @@ def send_data(data):
             timeout=5  # 5 seconds timeout
         )
         response.raise_for_status()
-    except requests.exceptions.ConnectionError as e:
-        print(f"Connection error: {e}. Is the server running at {api_endpoint}?")
-    except requests.exceptions.Timeout:
-        print(f"Request timed out while sending data to {api_endpoint}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Successfully sent {data.get('data_type', 'stock')} data")
     except requests.exceptions.RequestException as e:
-        print(f"Error sending data: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+        # Only print error once per minute to avoid spam
+        current_time = time.time()
+        if not hasattr(send_data, 'last_error_time') or current_time - send_data.last_error_time > 60:
+            print(f"Connection error: {e}")
+            send_data.last_error_time = current_time
 
 
 def send_additional_data():
@@ -133,8 +163,19 @@ def send_additional_data():
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, graceful_shutdown)
+    
+    if not wait_for_server():
+        print("Could not connect to server. Exiting.")
+        sys.exit(1)
+        
+    print("Starting data generation...")
     threading.Thread(target=send_additional_data, daemon=True).start()
+    
     while True:
-        data = generate_data()
-        send_data(data)
-        time.sleep(random.uniform(1, 5))
+        try:
+            data = generate_data()
+            send_data(data)
+            time.sleep(random.uniform(1, 5))
+        except KeyboardInterrupt:
+            break
