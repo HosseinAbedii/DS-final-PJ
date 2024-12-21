@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Define the name of the virtual environment directory
 VENV_DIR="venv"
+SERVER_SCRIPT="server.py"
+GENERATOR_SCRIPT="generator.py"
+PID_DIR="pids"
 
-# Define the name of the Python script to run
-SCRIPT_NAME="generator.py"
+# Create PID directory if it doesn't exist
+mkdir -p $PID_DIR
 
 # Function to initialize the project
 init() {
@@ -22,6 +24,47 @@ init() {
     echo "Initialization completed."
 }
 
+start_server() {
+    echo "Starting server..."
+    python $SERVER_SCRIPT > server.log 2>&1 &
+    echo $! > $PID_DIR/server.pid
+    # Wait for server to be ready
+    sleep 2
+}
+
+start_generator() {
+    echo "Starting generator..."
+    python $GENERATOR_SCRIPT > generator.log 2>&1 &
+    echo $! > $PID_DIR/generator.pid
+}
+
+stop_process() {
+    local pid_file="$PID_DIR/$1.pid"
+    if [ -f "$pid_file" ]; then
+        pid=$(cat "$pid_file")
+        echo "Stopping $1 (PID: $pid)..."
+        kill $pid 2>/dev/null || true
+        rm "$pid_file"
+    fi
+}
+
+status() {
+    echo "Checking services status..."
+    for service in "server" "generator"; do
+        if [ -f "$PID_DIR/$service.pid" ]; then
+            pid=$(cat "$PID_DIR/$service.pid")
+            if ps -p $pid > /dev/null; then
+                echo "$service is running (PID: $pid)"
+            else
+                echo "$service is not running (stale PID file)"
+                rm "$PID_DIR/$service.pid"
+            fi
+        else
+            echo "$service is not running"
+        fi
+    done
+}
+
 # Function to start the Python script
 start() {
     if [ ! -d "$VENV_DIR" ]; then
@@ -32,14 +75,18 @@ start() {
     echo "Activating virtual environment..."
     source $VENV_DIR/bin/activate
 
-    echo "Starting $SCRIPT_NAME..."
-    python $SCRIPT_NAME &
+    start_server
+    sleep 2  # Give the server time to start
+    start_generator
+    
+    echo "All services started. Use './manager.sh status' to check status."
 }
 
 # Function to stop the Python script
 stop() {
-    echo "Stopping $SCRIPT_NAME..."
-    pkill -f $SCRIPT_NAME
+    stop_process "generator"
+    stop_process "server"
+    echo "All services stopped."
 }
 
 # Check the command-line argument
@@ -53,7 +100,15 @@ case $1 in
     stop)
         stop
         ;;
+    status)
+        status
+        ;;
+    restart)
+        stop
+        sleep 2
+        start
+        ;;
     *)
-        echo "Usage: $0 {init|start|stop}"
+        echo "Usage: $0 {init|start|stop|status|restart}"
         exit 1
 esac
