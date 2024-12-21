@@ -1,8 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
-from kafka import KafkaProducer
-import json
 import logging
 from datetime import datetime
 import signal
@@ -15,14 +13,6 @@ import time
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
-
-# Kafka configuration
-kafka_bootstrap_servers = ['kafka:9092']
-kafka_producer = KafkaProducer(
-    bootstrap_servers=kafka_bootstrap_servers,
-    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-    retries=5
-)
 
 # Configure logging
 logging.basicConfig(
@@ -53,15 +43,6 @@ def broadcast_data():
                 logging.info(f"Broadcasting {data_type} data: {data}")
         time.sleep(0.1)  # Small delay to prevent CPU overload
 
-def send_to_kafka(data_type, data):
-    """Send data to appropriate Kafka topic"""
-    try:
-        topic = f"financial_data_{data_type}"
-        kafka_producer.send(topic, value=data)
-        logging.info(f"Sent to Kafka topic {topic}: {data}")
-    except Exception as e:
-        logging.error(f"Error sending to Kafka: {e}")
-
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy"}), 200
@@ -88,15 +69,11 @@ def ingest_data():
 
             # Add data to appropriate queue
             data_queues[data_type].put(data)
-            
-            # Send to Kafka
-            send_to_kafka(data_type, data)
-            
-            logging.info(f"Processed {data_type} data: {data}")
+            logging.info(f"Queued {data_type} data: {data}")
 
             return jsonify({
                 "status": "success",
-                "message": f"Successfully processed {data_type} data",
+                "message": f"Successfully queued {data_type} data",
                 "data": data
             }), 200
             
