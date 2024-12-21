@@ -58,6 +58,30 @@ DATA_SCHEMAS = {
     }
 }
 
+def serialize_schema(schema):
+    """Convert schema types to string representations"""
+    serialized = {
+        'required': schema['required'],
+        'types': {}
+    }
+    
+    for field, type_info in schema['types'].items():
+        if isinstance(type_info, tuple):
+            # Handle tuple of types (e.g., (int, float))
+            serialized['types'][field] = [t.__name__ for t in type_info]
+        else:
+            # Handle single type
+            serialized['types'][field] = type_info.__name__
+    
+    return serialized
+
+def get_serialized_schemas():
+    """Get JSON-serializable version of all schemas"""
+    return {
+        data_type: serialize_schema(schema)
+        for data_type, schema in DATA_SCHEMAS.items()
+    }
+
 def validate_data(data: Dict[str, Any]) -> tuple[bool, str]:
     """Validate incoming data against schemas"""
     if not isinstance(data, dict):
@@ -94,7 +118,7 @@ def ingest_data():
             "usage": {
                 "method": "POST",
                 "content-type": "application/json",
-                "schemas": DATA_SCHEMAS
+                "schemas": get_serialized_schemas()
             }
         }), 200
         
