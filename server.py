@@ -82,28 +82,46 @@ def get_serialized_schemas():
         for data_type, schema in DATA_SCHEMAS.items()
     }
 
-def validate_data(data: Dict[str, Any]) -> tuple[bool, str]:
-    """Validate incoming data against schemas"""
+def validate_and_convert_data(data: Dict[str, Any]) -> tuple[bool, str, Dict[str, Any]]:
+    """Validate and convert data types"""
     if not isinstance(data, dict):
-        return False, "Data must be a JSON object"
+        return False, "Data must be a JSON object", None
     
     data_type = data.get('data_type', 'stock')
     schema = DATA_SCHEMAS.get(data_type)
     
     if not schema:
-        return False, f"Unknown data type: {data_type}"
+        return False, f"Unknown data type: {data_type}", None
     
-    # Check required fields
+    converted_data = {}
+    
+    # Check required fields and convert types
     for field in schema['required']:
         if field not in data:
-            return False, f"Missing required field: {field}"
+            return False, f"Missing required field: {field}", None
+        
+        value = data[field]
+        expected_type = schema['types'][field]
+        
+        try:
+            if isinstance(expected_type, tuple):
+                # Handle numeric types (int, float)
+                if isinstance(value, (int, float)):
+                    converted_data[field] = value
+                else:
+                    return False, f"Invalid type for {field}: expected number", None
+            else:
+                # Handle string types
+                if expected_type == str:
+                    converted_data[field] = str(value)
+                elif expected_type == int:
+                    converted_data[field] = int(value)
+                else:
+                    converted_data[field] = value
+        except (ValueError, TypeError):
+            return False, f"Invalid value for {field}: {value}", None
     
-    # Validate types
-    for field, expected_type in schema['types'].items():
-        if field in data and not isinstance(data[field], expected_type):
-            return False, f"Invalid type for {field}: expected {expected_type}, got {type(data[field])}"
-    
-    return True, ""
+    return True, "", converted_data
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -128,15 +146,16 @@ def ingest_data():
             if not data:
                 return jsonify({"error": "No data provided"}), 400
 
-            is_valid, error_message = validate_data(data)
+            is_valid, error_message, converted_data = validate_and_convert_data(data)
             if not is_valid:
                 return jsonify({"error": error_message}), 400
 
             data_type = data.get('data_type', 'stock')
-            logging.info(f"Received valid {data_type} data: {data}")
+            logging.info(f"Received valid {data_type} data: {converted_data}")
             return jsonify({
                 "status": "success",
-                "message": f"Successfully ingested {data_type} data"
+                "message": f"Successfully ingested {data_type} data",
+                "data": converted_data
             }), 200
             
         except Exception as e:
