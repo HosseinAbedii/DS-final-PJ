@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: ingestion
-        image: hosseinabedi/data-ingestion:0.1
+        image: hosseinabedi/data-ingestion:lastest
         imagePullPolicy: Always
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
