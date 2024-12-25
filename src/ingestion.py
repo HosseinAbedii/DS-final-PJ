@@ -15,15 +15,14 @@ logger = logging.getLogger(__name__)
 kafka_bootstrap_servers = ['kafka:9092']
 kafka_topic = 'financial_data'
 
-# Socket.IO configuration with transport preference
+# Socket.IO configuration with correct parameters
 sio = socketio.Client(
     reconnection=True,
     reconnection_attempts=10,
     reconnection_delay=1,
     reconnection_delay_max=5,
     logger=logger,
-    engineio_logger=True,
-    transport='polling'  # Start with polling if websocket fails
+    engineio_logger=True
 )
 
 # Get server URL from environment or use default
@@ -85,7 +84,12 @@ def start_listening():
         try:
             logger.info(f"Attempting to connect to {SERVER_URL} (attempt {retry_count + 1}/{max_retries})")
             create_kafka_topic()
-            sio.connect(SERVER_URL)  # Simplified connection
+            # Connect with transport options
+            sio.connect(
+                SERVER_URL,
+                transports=['polling', 'websocket'],
+                wait_timeout=10
+            )
             sio.wait()
             break
         except Exception as e:
@@ -94,7 +98,7 @@ def start_listening():
             if retry_count == max_retries:
                 logger.error("Max retries reached. Exiting.")
                 sys.exit(1)
-            time.sleep(10)  # Wait 10 seconds before retry
+            time.sleep(10)
 
 if __name__ == '__main__':
     logger.info("Starting stock data ingestion service...")
