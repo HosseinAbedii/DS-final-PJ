@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: ingestion
-        image: hosseinabedi/data-ingestion:latest
-        imagePullPolicy: IfNotPresent
+        image: hosseinabedi/data-ingestion:0.1
+        imagePullPolicy: always
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
