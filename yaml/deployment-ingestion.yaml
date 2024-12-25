@@ -24,7 +24,7 @@ spec:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
         - name: SERVER_URL
-          value: "http://generator-service:5000"  # Point to generator service
+          value: "http://localhost:5000"  # Point to generator service
         - name: PYTHONUNBUFFERED
           value: "1"
         livenessProbe:
