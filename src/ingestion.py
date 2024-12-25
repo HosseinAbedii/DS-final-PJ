@@ -16,7 +16,7 @@ kafka_topic = 'financial_data'
 
 
 sio = socketio.Client()
-SERVER_URL = 'http://localhost:5000'
+SERVER_URL = 'http://192.168.220.128:5000'
 
 def create_kafka_topic():
     """Create Kafka topic if it doesn't exist"""

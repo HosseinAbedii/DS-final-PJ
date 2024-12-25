@@ -17,14 +17,14 @@ spec:
       containers:
       - name: ingestion
         image: hosseinabedi/data-ingestion:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
         - name: SERVER_URL
-          value: "http://localhost:5000"  # Point to generator service
+          value: "http://192.168.220.128:5000"  # Point to generator service
         - name: PYTHONUNBUFFERED
           value: "1"
         livenessProbe:
@@ -39,12 +39,6 @@ spec:
             path: /health
             port: 5000
           initialDelaySeconds: 15
-          periodSeconds: 10
-        startupProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          failureThreshold: 30
           periodSeconds: 10
 ---
 apiVersion: v1
