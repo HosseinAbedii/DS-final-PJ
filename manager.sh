@@ -75,9 +75,27 @@ start() {
     echo "Activating virtual environment..."
     source $VENV_DIR/bin/activate
 
+    # Start server first
     start_server
-    sleep 2  # Give the server time to start
-    start_generator
+    
+    # Wait for server to be ready (5 seconds)
+    echo "Waiting for server to initialize..."
+    sleep 5
+    
+    # Check if server is running before starting generator
+    if [ -f "$PID_DIR/server.pid" ]; then
+        pid=$(cat "$PID_DIR/server.pid")
+        if ps -p $pid > /dev/null; then
+            echo "Server is running, starting generator..."
+            start_generator
+        else
+            echo "Server failed to start. Please check server.log for details."
+            exit 1
+        fi
+    else
+        echo "Server PID file not found. Server may have failed to start."
+        exit 1
+    fi
     
     echo "All services started. Use './manager.sh status' to check status."
 }
