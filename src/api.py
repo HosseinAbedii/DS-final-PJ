@@ -1,40 +1,28 @@
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
-import redis
-import json
-from datetime import datetime, timedelta
-import os
+from flask import Flask
+from flask_socketio import SocketIO, emit
+import logging
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-redis_client = redis.Redis(host='redis', port=6379, db=0)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-@app.route('/')
-def home():
-    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'index.html')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@app.route('/api/historical-data')
-def get_historical_data():
-    hours = int(request.args.get('hours', 24))
-    current_time = datetime.now()
-    start_time = current_time - timedelta(hours=hours)
-    
-    # Get all keys from Redis
-    all_keys = redis_client.keys('financial_data:*')
-    data = []
-    
-    for key in all_keys:
-        try:
-            record = json.loads(redis_client.get(key))
-            record_time = datetime.fromtimestamp(record['timestamp']/1000)
-            if record_time >= start_time:
-                data.append(record)
-        except:
-            continue
-    
-    # Sort by timestamp
-    data.sort(key=lambda x: x['timestamp'], reverse=True)
-    return jsonify(data)
+@socketio.on('connect')
+def handle_connect():
+    logger.info(f"Client connected")
+
+@socketio.on('kafka_data')
+def handle_kafka_data(data):
+    logger.info("=" * 50)
+    logger.info("Received Kafka Data:")
+    logger.info(f"Symbol: {data.get('stock_symbol')}")
+    logger.info(f"Price: {data.get('price')}")
+    logger.info(f"Volume: {data.get('volume')}")
+    logger.info(f"Timestamp: {data.get('timestamp')}")
+    logger.info("=" * 50)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    logger.info("Starting WebSocket server on port 6000...")
+    socketio.run(app, host='0.0.0.0', port=6000, debug=True)
+
