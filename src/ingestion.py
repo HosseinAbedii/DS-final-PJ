@@ -1,25 +1,39 @@
+from flask import Flask, request, jsonify
 from kafka import KafkaProducer, KafkaAdminClient
-from kafka.admin import NewTopic  
-import socketio
+from kafka.admin import NewTopic
 import json
 import logging
-import sys
 import time
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+app = Flask(__name__)
+
 # Kafka configuration
 kafka_bootstrap_servers = ['kafka:9092']
 kafka_topic = 'financial_data'
-
-
-sio = socketio.Client()
-SERVER_URL = 'http://localhost:5000'
+ # Initialize Kafka producer
+def create_producer():
+    retries = 0
+    max_retries = 30
+    while retries < max_retries:
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers=kafka_bootstrap_servers,
+                value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            )
+            logger.info("Successfully connected to Kafka")
+            return producer
+        except Exception as e:
+            logger.error(f"Failed to connect to Kafka: {e}")
+            retries += 1
+            time.sleep(10)
+    return None
 
 def create_kafka_topic():
-    """Create Kafka topic if it doesn't exist"""
     try:
         admin_client = KafkaAdminClient(
             bootstrap_servers=kafka_bootstrap_servers,
@@ -34,46 +48,35 @@ def create_kafka_topic():
         else:
             logger.error(f"Error creating topic: {e}")
 
-def forward_to_kafka(data):
-    """Forward stock data to Kafka"""
+@app.route('/ingest', methods=['POST'])
+def ingest_data():
     try:
-        producer = KafkaProducer(
-            bootstrap_servers=kafka_bootstrap_servers,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
-        )
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        # Send to Kafka
         producer.send(kafka_topic, value=data)
         producer.flush()
-        logger.info(f"Forwarded stock data to Kafka: {data}")
+        logger.info(f"Forwarded data to Kafka: {data}")
+        return jsonify({"status": "success"}), 200
+
     except Exception as e:
-        logger.error(f"Error sending to Kafka: {e}")
+        logger.error(f"Error processing request: {e}")
+        return jsonify({"error": str(e)}), 500
 
-@sio.event
-def connect():
-    logger.info("Connected to server")
-
-@sio.event
-def disconnect():
-    logger.info("Disconnected from server")
-
-@sio.on('data_stock')
-def on_stock_data(data):
-    """Handle incoming stock data from WebSocket"""
-    logger.info(f"Received stock data: {data}")
-    forward_to_kafka(data)
-
-def start_listening():
-    """Start listening to WebSocket events"""
-    create_kafka_topic()
-    
-    while True:
-        try:
-            logger.info(f"Connecting to server at {SERVER_URL}")
-            sio.connect(SERVER_URL)
-            sio.wait()
-        except Exception as e:
-            logger.error(f"Connection error: {e}")
-            time.sleep(5)  # Wait before retry
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy"}), 200
 
 if __name__ == '__main__':
-    logger.info("Starting stock data ingestion service...")
-    start_listening()
+    # Create topic and initialize producer
+    create_kafka_topic()
+    producer = create_producer()
+    
+    if not producer:
+        logger.error("Failed to connect to Kafka. Exiting.")
+        exit(1)
+
+    # Start Flask app
+    app.run(host='0.0.0.0', port=5000)
