@@ -15,14 +15,15 @@ logger = logging.getLogger(__name__)
 kafka_bootstrap_servers = ['kafka:9092']
 kafka_topic = 'financial_data'
 
-# Socket.IO configuration with all transports enabled
+# Socket.IO configuration with transport preference
 sio = socketio.Client(
     reconnection=True,
     reconnection_attempts=10,
     reconnection_delay=1,
     reconnection_delay_max=5,
     logger=logger,
-    engineio_logger=True
+    engineio_logger=True,
+    transport='polling'  # Start with polling if websocket fails
 )
 
 # Get server URL from environment or use default
@@ -84,11 +85,11 @@ def start_listening():
         try:
             logger.info(f"Attempting to connect to {SERVER_URL} (attempt {retry_count + 1}/{max_retries})")
             create_kafka_topic()
-            sio.connect(SERVER_URL, transports=['websocket', 'polling'])
+            sio.connect(SERVER_URL)  # Simplified connection
             sio.wait()
             break
         except Exception as e:
-            logger.error(f"Connection failed: {e}")
+            logger.error(f"Connection failed: {str(e)}")
             retry_count += 1
             if retry_count == max_retries:
                 logger.error("Max retries reached. Exiting.")
