@@ -26,7 +26,7 @@ sio = socketio.Client(
 )
 
 # Get server URL from environment or use default
-SERVER_URL = os.getenv('SERVER_URL', 'http://192.168.220.128:5000')
+SERVER_URL = os.getenv('SERVER_URL', 'http://127.0.0.1:5000')
 
 def create_kafka_topic():
     """Create Kafka topic if it doesn't exist"""
