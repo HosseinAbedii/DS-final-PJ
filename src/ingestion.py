@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 import time
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,9 +15,18 @@ logger = logging.getLogger(__name__)
 kafka_bootstrap_servers = ['kafka:9092']
 kafka_topic = 'financial_data'
 
+# Socket.IO configuration with all transports enabled
+sio = socketio.Client(
+    reconnection=True,
+    reconnection_attempts=10,
+    reconnection_delay=1,
+    reconnection_delay_max=5,
+    logger=logger,
+    engineio_logger=True
+)
 
-sio = socketio.Client()
-SERVER_URL = 'http://192.168.220.128:5000'
+# Get server URL from environment or use default
+SERVER_URL = os.getenv('SERVER_URL', 'http://192.168.220.128:5000')
 
 def create_kafka_topic():
     """Create Kafka topic if it doesn't exist"""
@@ -49,7 +59,11 @@ def forward_to_kafka(data):
 
 @sio.event
 def connect():
-    logger.info("Connected to server")
+    logger.info(f"Connected to server at {SERVER_URL}")
+
+@sio.event
+def connect_error(error):
+    logger.error(f"Connection error: {error}")
 
 @sio.event
 def disconnect():
@@ -62,18 +76,29 @@ def on_stock_data(data):
     forward_to_kafka(data)
 
 def start_listening():
-    """Start listening to WebSocket events"""
-    create_kafka_topic()
+    """Start listening to WebSocket events with retry"""
+    retry_count = 0
+    max_retries = 30
     
-    while True:
+    while retry_count < max_retries:
         try:
-            logger.info(f"Connecting to server at {SERVER_URL}")
-            sio.connect(SERVER_URL)
+            logger.info(f"Attempting to connect to {SERVER_URL} (attempt {retry_count + 1}/{max_retries})")
+            create_kafka_topic()
+            sio.connect(SERVER_URL, transports=['websocket', 'polling'])
             sio.wait()
+            break
         except Exception as e:
-            logger.error(f"Connection error: {e}")
-            time.sleep(5)  # Wait before retry
+            logger.error(f"Connection failed: {e}")
+            retry_count += 1
+            if retry_count == max_retries:
+                logger.error("Max retries reached. Exiting.")
+                sys.exit(1)
+            time.sleep(10)  # Wait 10 seconds before retry
 
 if __name__ == '__main__':
     logger.info("Starting stock data ingestion service...")
-    start_listening()
+    try:
+        start_listening()
+    except KeyboardInterrupt:
+        logger.info("Shutting down gracefully...")
+        sio.disconnect()
