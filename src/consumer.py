@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
 
-# Define the schema for the incoming data
+# Define the schema for the incoming data : this change for git bug 
 schema = StructType([
     StructField("stock_symbol", StringType(), True),
     StructField("opening_price", FloatType(), True),
