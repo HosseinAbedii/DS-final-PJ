@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: spark-consumer
-        image: hosseinabedi/spark-consumer:latest
-        imagePullPolicy: Always
+        image: hosseinabedi/spark-consumer:0.1
+        imagePullPolicy: IfNotPresent
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka.default.svc.cluster.local:9092"
