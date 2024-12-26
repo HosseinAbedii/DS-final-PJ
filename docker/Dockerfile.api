@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install required packages
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install flask-socketio python-socketio eventlet
+
+COPY src/api.py .
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 6000
+
+CMD ["python", "api.py"]

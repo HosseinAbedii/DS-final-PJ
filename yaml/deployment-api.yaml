@@ -19,7 +19,7 @@ spec:
         image: hosseinabedi/flask-api:latest  # Replace with your image
         imagePullPolicy: Always
         ports:
-        - containerPort: 5000
+        - containerPort: 6000
         env:
         - name: REDIS_HOST
           value: "redis"
@@ -34,6 +34,6 @@ spec:
     app: flask-api
   ports:
     - protocol: TCP
-      port: 5000
-      targetPort: 5000
-      nodePort: 30500  # Fixed NodePort for API
+      port: 6000
+      targetPort: 6000
+      nodePort: 30600  # Fixed NodePort for API

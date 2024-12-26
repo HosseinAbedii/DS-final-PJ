@@ -1,13 +1,16 @@
 import time
 import random
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import json
 import psutil
 import os
 import numpy as np
 import threading
-from kafka import KafkaProducer
-from kafka.admin import KafkaAdminClient, NewTopic
+import signal
+import sys
+from datetime import datetime
 
 # Set process affinity to a single core
 p = psutil.Process(os.getpid())
@@ -19,38 +22,47 @@ stocks = ["AAPL", "GOOGL", "AMZN", "MSFT", "TSLA"]
 # API endpoint to send the generated data
 api_endpoint = "http://localhost:5000/ingest"
 
-# Kafka configuration
-kafka_topic = "financial_data"
-kafka_bootstrap_servers = ['kafka:9092']  # Changed to match K8s service name
-
-# Initialize Kafka producer with better error handling
-producer = KafkaProducer(
-    bootstrap_servers=kafka_bootstrap_servers,
-    value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-    retries=5,
-    retry_backoff_ms=1000,
-    request_timeout_ms=30000,
-    security_protocol="PLAINTEXT",
-    acks='all'
+# Configure retry strategy
+retry_strategy = Retry(
+    total=3,  # number of retries
+    backoff_factor=0.5,  # wait 0.5s * (2 ** retry) between retries
+    status_forcelist=[500, 502, 503, 504]  # HTTP status codes to retry on
 )
 
-# More robust topic creation
-def create_kafka_topic():
+# Create session with retry strategy
+session = requests.Session()
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+
+def check_server():
+    """Check if the server is available"""
+    print(f"Checking server availability at {api_endpoint}...")
     try:
-        admin_client = KafkaAdminClient(
-            bootstrap_servers=kafka_bootstrap_servers,
-            client_id='financial-data-generator'
-        )
-        topic_list = [NewTopic(name=kafka_topic, num_partitions=1, replication_factor=1)]
-        admin_client.create_topics(new_topics=topic_list, validate_only=False)
-        print(f"Successfully created topic: {kafka_topic}")
-    except Exception as e:
-        if "TopicAlreadyExistsError" in str(e):
-            print(f"Topic {kafka_topic} already exists")
-        else:
-            print(f"Error creating topic: {e}")
-    finally:
-        admin_client.close()
+        response = session.get(api_endpoint.replace('/ingest', '/health'), timeout=2)
+        return response.status_code == 200
+    except:
+        return False
+
+def wait_for_server(max_attempts=5):
+    """Wait for server to become available with exponential backoff"""
+    attempt = 0
+    while attempt < max_attempts:
+        if check_server():
+            print("Server is available!")
+            return True
+        wait_time = 2 ** attempt
+        print(f"Server not available. Retrying in {wait_time} seconds... ({attempt + 1}/{max_attempts})")
+        time.sleep(wait_time)
+        attempt += 1
+    return False
+
+def graceful_shutdown(signum, frame):
+    """Handle graceful shutdown on CTRL+C"""
+    print("\nShutting down gracefully...")
+    sys.exit(0)
+
 
 def generate_data():
     stock_symbol = random.choice(stocks)
@@ -120,26 +132,28 @@ def generate_additional_data():
             "data_type": "economic_indicator",
             "timestamp": timestamp,
             "indicator_name": "GDP Growth Rate",
-            "value": random.uniform(-5, 5)
+            "value": random.uniform(-5, 5),
+            "timestamp": timestamp
         }
     return data
 
 
-# More robust send_data function
 def send_data(data):
-    max_retries = 3
-    retry_count = 0
-    while retry_count < max_retries:
-        try:
-            future = producer.send(kafka_topic, value=data)
-            future.get(timeout=10)  # Wait for send to complete
-            return
-        except Exception as e:
-            retry_count += 1
-            print(f"Error sending data (attempt {retry_count}/{max_retries}): {e}")
-            if retry_count == max_retries:
-                print("Max retries reached, dropping message")
-            time.sleep(1)
+    try:
+        response = session.post(
+            api_endpoint,
+            json=data,
+            headers={"Content-Type": "application/json"},
+            timeout=5  # 5 seconds timeout
+        )
+        response.raise_for_status()
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Successfully sent {data.get('data_type', 'stock')} data")
+    except requests.exceptions.RequestException as e:
+        # Only print error once per minute to avoid spam
+        current_time = time.time()
+        if not hasattr(send_data, 'last_error_time') or current_time - send_data.last_error_time > 60:
+            print(f"Connection error: {e}")
+            send_data.last_error_time = current_time
 
 
 def send_additional_data():
@@ -150,9 +164,19 @@ def send_additional_data():
 
 
 if __name__ == "__main__":
-    create_kafka_topic()  # Create topic before starting
+    signal.signal(signal.SIGINT, graceful_shutdown)
+    
+    if not wait_for_server():
+        print("Could not connect to server. Exiting.")
+        sys.exit(1)
+        
+    print("Starting data generation...")
     threading.Thread(target=send_additional_data, daemon=True).start()
+    
     while True:
-        data = generate_data()
-        send_data(data)
-        time.sleep(random.uniform(1, 5))
+        try:
+            data = generate_data()
+            send_data(data)
+            time.sleep(random.uniform(1, 5))
+        except KeyboardInterrupt:
+            break
