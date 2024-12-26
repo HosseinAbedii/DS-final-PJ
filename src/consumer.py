@@ -28,7 +28,7 @@ spark = SparkSession.builder \
 
 def foreach_batch_function(df, epoch_id):
     print(f"\n=== Batch {epoch_id} ===")
-b    print("Number of records:", df.count())
+    print("Number of records:", df.count())
     df.show(truncate=False)
 
 if __name__ == "__main__":
