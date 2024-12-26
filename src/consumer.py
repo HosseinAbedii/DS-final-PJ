@@ -1,6 +1,3 @@
-import websockets
-import asyncio
-import json
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
@@ -29,29 +26,10 @@ spark = SparkSession.builder \
     .config("spark.kafka.consumer.cache.enabled", "false") \
     .getOrCreate()
 
-# WebSocket configuration
-WS_URL = "ws://flask-api-service:6000/socket.io/?EIO=4&transport=websocket"
-
-async def send_to_websocket(data):
-    try:
-        async with websockets.connect(WS_URL) as websocket:
-            message = {
-                "event": "kafka_data",
-                "data": data
-            }
-            await websocket.send(json.dumps(message))
-            print(f"Sent to WebSocket: {data['stock_symbol']} - {data['price']}")
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-
 def foreach_batch_function(df, epoch_id):
     print(f"\n=== Batch {epoch_id} ===")
-    rows = df.toJSON().collect()
-    for row in rows:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(send_to_websocket(json.loads(row)))
-        loop.close()
+    print("Number of records:", df.count())
+    df.show(truncate=False)
 
 if __name__ == "__main__":
     print("Starting Spark Streaming application...")
