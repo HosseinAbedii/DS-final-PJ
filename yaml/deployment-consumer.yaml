@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: spark-consumer
-        image: hosseinabedi/spark-consumer:0.1
+        image: hosseinabedi/spark-consumer:lastest
         imagePullPolicy: IfNotPresent
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
