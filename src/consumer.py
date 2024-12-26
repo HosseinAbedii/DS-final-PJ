@@ -1,6 +1,66 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
+from kafka import KafkaConsumer
+import json
+import logging
+import sys
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Kafka configuration
+KAFKA_BOOTSTRAP_SERVERS = ['kafka:9092']
+KAFKA_TOPIC = 'financial_data'
+
+def create_kafka_consumer():
+    """Create and return a Kafka consumer instance"""
+    try:
+        consumer = KafkaConsumer(
+            KAFKA_TOPIC,
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+            auto_offset_reset='latest',
+            enable_auto_commit=True,
+            group_id='financial_data_consumer_group',
+            value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+        )
+        logger.info("Kafka consumer created successfully")
+        return consumer
+    except Exception as e:
+        logger.error(f"Error creating Kafka consumer: {e}")
+        sys.exit(1)
+
+def process_message(message):
+    """Process each message from Kafka"""
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"[{timestamp}] Received message: {message.value}")
+        # Add your data processing logic here
+        return message.value
+    except Exception as e:
+        logger.error(f"Error processing message: {e}")
+        return None
+
+def start_consuming():
+    """Start consuming messages from Kafka"""
+    consumer = create_kafka_consumer()
+    logger.info(f"Starting to consume messages from topic: {KAFKA_TOPIC}")
+    
+    try:
+        for message in consumer:
+            processed_data = process_message(message)
+            if processed_data:
+                # Add your storage or further processing logic here
+                pass
+    except KeyboardInterrupt:
+        logger.info("Gracefully shutting down consumer...")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+    finally:
+        consumer.close()
+        logger.info("Consumer closed")
 
 # Define the schema for the incoming data : this change for git bug 
 schema = StructType([
