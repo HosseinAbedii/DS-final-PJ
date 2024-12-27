@@ -8,27 +8,17 @@ RUN install_packages python3 python3-pip
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt && \
-    pip3 install --no-cache-dir six>=1.16.0 kafka-python==2.0.2 && \
-    pip3 install --no-cache-dir 'setuptools<58.0.0'
+RUN pip3 install -r requirements.txt kafka-python websockets redis
 
-# Copy the entire src directory
-COPY src/ ./src/
+# Copy the consumer script
+COPY src/consumer.py .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV SPARK_HOME=/opt/bitnami/spark
-ENV PYTHONPATH="${SPARK_HOME}/python:${SPARK_HOME}/python/lib/py4j-0.10.9.7-src.zip:${PYTHONPATH}"
 
 # Switch back to non-root user
 USER 1001
 
-# Update spark-submit command
-CMD ["/opt/bitnami/spark/bin/spark-submit", \
-     "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3", \
-     "--master", "spark://spark-master:7077", \
-     "--conf", "spark.driver.host=spark-consumer", \
-     "--conf", "spark.driver.bindAddress=0.0.0.0", \
-     "--conf", "spark.executor.extraClassPath=/app", \
-     "--conf", "spark.driver.extraClassPath=/app", \
-     "src/consumer.py"]
+# Add spark-submit command
+CMD ["/opt/bitnami/spark/bin/spark-submit", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3", "--master", "local[*]", "--conf", "spark.driver.host=localhost", "--conf", "spark.driver.bindAddress=0.0.0.0", "/app/consumer.py"]
