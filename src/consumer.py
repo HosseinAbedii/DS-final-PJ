@@ -8,6 +8,7 @@ import json
 import logging
 import random
 from datetime import datetime, timedelta
+import time
 
 # Configure logging
 logging.basicConfig(
@@ -16,14 +17,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Update schema without price and timestamp
+# Update schema to match the data structure
 schema = StructType([
     StructField("stock_symbol", StringType(), True),
     StructField("opening_price", FloatType(), True),
     StructField("closing_price", FloatType(), True),
     StructField("high", FloatType(), True),
     StructField("low", FloatType(), True),
-    StructField("volume", IntegerType(), True)
+    StructField("volume", IntegerType(), True),
+    StructField("timestamp", LongType(), True),
+    StructField("price", FloatType(), True)
 ])
 
 # Add API endpoints
@@ -99,41 +102,42 @@ def generate_trading_signal(price_data):
 def foreach_batch_function(df, epoch_id):
     try:
         logger.info(f"\n=== Processing batch {epoch_id} at {datetime.now()} ===")
-        print(f"\n=== Batch {epoch_id} ===")
-        df.show(truncate=False)
         
         rows = df.toJSON().collect()
         for row in rows:
             data = json.loads(row)
             try:
-                # Create a formatted data object with current price
-                formatted_data = {
+                # Format data for WebSocket emission
+                stock_data = {
                     'stock_symbol': data['stock_symbol'],
-                    'current_price': data['closing_price'],  # Use closing price as current price
+                    'current_price': data['closing_price'],
                     'opening_price': data['opening_price'],
                     'closing_price': data['closing_price'],
                     'high': data['high'],
                     'low': data['low'],
-                    'volume': data['volume']
+                    'volume': data['volume'],
+                    'timestamp': int(time.time() * 1000)  # Add timestamp
                 }
                 
-                # Generate and emit trading signal
-                trading_signal = generate_trading_signal(formatted_data)
-                if trading_signal:
-                    socketio.emit('trading_signal', trading_signal)
-                    logger.info(f"Trading Signal: {trading_signal['signal']} for {trading_signal['stock']}")
+                # Log the data being emitted
+                logger.info(f"Emitting stock data: {stock_data}")
                 
-                # Emit regular stock update
-                socketio.emit('stock_update', formatted_data)
-                logger.info(f"Stock Update: {formatted_data['stock_symbol']} - ${formatted_data['current_price']}")
+                # Emit to WebSocket
+                socketio.emit('stock_update', stock_data)
+                
+                # Generate and emit trading signal
+                if random.random() < 0.3:  # 30% chance to generate signal
+                    signal = generate_trading_signal(stock_data)
+                    socketio.emit('trading_signal', signal)
+                    logger.info(f"Emitted trading signal: {signal}")
                 
             except Exception as e:
-                logger.error(f"Failed to broadcast data: {e}")
-                logger.error(f"Raw data: {data}")
+                logger.error(f"Failed to process data: {e}")
+                logger.error(f"Problematic data: {data}")
         
         logger.info(f"Processed {len(rows)} records in batch {epoch_id}")
     except Exception as e:
-        logger.error(f"Error processing batch {epoch_id}: {e}")
+        logger.error(f"Error in batch processing: {e}")
 
 if __name__ == "__main__":
     logger.info("Starting Spark Streaming and WebSocket server...")
