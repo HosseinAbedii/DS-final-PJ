@@ -6,6 +6,10 @@ import json
 import logging
 import sys
 from datetime import datetime
+from flask import Flask
+from flask_socketio import SocketIO
+from flask_cors import CORS
+import threading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -86,9 +90,20 @@ spark = SparkSession.builder \
     .config("spark.kafka.consumer.cache.enabled", "false") \
     .getOrCreate()
 
+# Initialize Flask and SocketIO
+app = Flask(__name__)
+CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 def foreach_batch_function(df, epoch_id):
     print(f"\n=== Batch {epoch_id} ===")
-    print("Number of records:", df.count())
+    records = df.collect()
+    for record in records:
+        # Convert record to dictionary
+        data = record.asDict()
+        # Broadcast to WebSocket clients
+        socketio.emit('stock_update', data)
+    print("Number of records:", len(records))
     df.show(truncate=False)
 
 if __name__ == "__main__":
@@ -96,6 +111,11 @@ if __name__ == "__main__":
     print("Connecting to Spark Master:", spark.sparkContext.master)
     
     try:
+        # Start Flask-SocketIO server in a separate thread
+        socketio_thread = threading.Thread(target=lambda: socketio.run(app, host='0.0.0.0', port=6001))
+        socketio_thread.daemon = True
+        socketio_thread.start()
+
         # Start Spark streaming with explicit configuration
         df = spark.readStream \
             .format("kafka") \

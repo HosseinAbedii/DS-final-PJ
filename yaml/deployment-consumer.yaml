@@ -18,6 +18,8 @@ spec:
       - name: spark-consumer
         image: hosseinabedi/spark-consumer:latest
         imagePullPolicy: Always
+        ports:
+        - containerPort: 6001
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka.default.svc.cluster.local:9092"
@@ -25,9 +27,25 @@ spec:
           value: "1"
         - name: SPARK_MASTER_URL
           value: "spark://spark-master:7077"
+        - name: FLASK_ENV
+          value: "production"
         volumeMounts:
         - name: checkpoint-volume
           mountPath: /tmp/checkpoint
       volumes:
       - name: checkpoint-volume
         emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-consumer-service
+spec:
+  type: NodePort
+  ports:
+    - port: 6001
+      targetPort: 6001
+      nodePort: 30601
+      protocol: TCP
+  selector:
+    app: spark-consumer
