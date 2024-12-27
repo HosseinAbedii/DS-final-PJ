@@ -1,5 +1,13 @@
-import eventlet
-eventlet.monkey_patch()
+try:
+    import eventlet
+    eventlet.monkey_patch()
+except ImportError:
+    print("Eventlet not found, installing required packages...")
+    import subprocess
+    subprocess.check_call(["pip", "install", "eventlet==0.33.3", "werkzeug==2.3.7", "greenlet==2.0.2"])
+    import eventlet
+    eventlet.monkey_patch()
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
@@ -30,13 +38,22 @@ schema = StructType([
 # Add API endpoints
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, 
-    cors_allowed_origins="*", 
-    logger=True, 
-    engineio_logger=True,
-    ping_timeout=60,
-    ping_interval=25
-)
+try:
+    socketio = SocketIO(app, 
+        cors_allowed_origins="*", 
+        logger=True,
+        async_mode='eventlet',
+        ping_timeout=60,
+        ping_interval=25
+    )
+except Exception as e:
+    logger.warning(f"Falling back to default async mode: {e}")
+    socketio = SocketIO(app, 
+        cors_allowed_origins="*", 
+        logger=True,
+        ping_timeout=60,
+        ping_interval=25
+    )
 
 @app.route('/')
 def home():
@@ -59,10 +76,6 @@ spark = SparkSession.builder \
     .config("spark.driver.host", "localhost") \
     .config("spark.driver.bindAddress", "0.0.0.0") \
     .getOrCreate()
-
-# Initialize Flask and SocketIO with eventlet
-app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, async_mode='eventlet')
 
 @socketio.on('connect')
 def handle_connect():
