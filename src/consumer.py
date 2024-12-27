@@ -1,6 +1,12 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col
+from pyspark.sql.functions import from_json, col, to_timestamp
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
+import logging
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Define the schema for the incoming data
 schema = StructType([
@@ -16,50 +22,83 @@ schema = StructType([
 
 # Initialize Spark session with cluster configuration
 spark = SparkSession.builder \
-    .appName("KafkaConsumer") \
+    .appName("StockDataConsumer") \
     .master("spark://spark-master:7077") \
     .config("spark.executor.memory", "512m") \
     .config("spark.cores.max", "2") \
     .config("spark.driver.host", "spark-consumer") \
     .config("spark.driver.bindAddress", "0.0.0.0") \
-    .config("spark.kubernetes.namespace", "default") \
-    .config("spark.kafka.consumer.cache.enabled", "false") \
     .getOrCreate()
 
-def foreach_batch_function(df, epoch_id):
-    print(f"\n=== Batch {epoch_id} ===")
-    print("Number of records:", df.count())
-    df.show(truncate=False)
+def process_batch(df, epoch_id):
+    """Process each batch of data"""
+    try:
+        print("\n" + "="*80)
+        print(f"Batch Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Batch ID: {epoch_id}")
+        print("="*80)
+
+        if not df.isEmpty():
+            # Show detailed stock information
+            print("\nDetailed Stock Information:")
+            df.select(
+                to_timestamp(col("timestamp")).alias("time"),
+                "stock_symbol",
+                "price",
+                "opening_price",
+                "closing_price",
+                "high",
+                "low",
+                "volume"
+            ).show(truncate=False)
+
+            # Calculate statistics
+            stats = df.groupBy("stock_symbol").agg({
+                "price": "avg",
+                "volume": "sum",
+                "high": "max",
+                "low": "min"
+            })
+            
+            print("\nStock Statistics in this Batch:")
+            stats.show(truncate=False)
+            
+            # Print total number of records
+            count = df.count()
+            print(f"\nTotal records in batch: {count}")
+    except Exception as e:
+        logger.error(f"Error processing batch: {e}")
 
 if __name__ == "__main__":
-    print("Starting Spark Streaming application...")
-    print("Connecting to Spark Master:", spark.sparkContext.master)
-    
+    logger.info("Starting Spark Streaming application...")
+    logger.info(f"Connected to Spark Master: {spark.sparkContext.master}")
+
     try:
-        # Start Spark streaming with explicit configuration
-        df = spark.readStream \
+        # Create streaming DataFrame from Kafka
+        streaming_df = spark.readStream \
             .format("kafka") \
             .option("kafka.bootstrap.servers", "kafka.default.svc.cluster.local:9092") \
             .option("subscribe", "financial_data") \
             .option("startingOffsets", "latest") \
-            .option("kafka.security.protocol", "PLAINTEXT") \
             .option("failOnDataLoss", "false") \
             .load()
 
-        # Parse JSON data
-        df = df.selectExpr("CAST(value AS STRING)")
-        parsed_df = df.select(from_json(col("value"), schema).alias("data")).select("data.*")
+        # Parse JSON data with more detailed error handling
+        parsed_df = streaming_df.selectExpr("CAST(value AS STRING) as json") \
+            .select(from_json(col("json"), schema).alias("data")) \
+            .select("data.*")
 
-        # Write stream to console with more detailed configuration
+        # Process the stream with checkpoint
         query = parsed_df.writeStream \
-            .outputMode("append") \
+            .foreachBatch(process_batch) \
+            .outputMode("update") \
             .trigger(processingTime="5 seconds") \
-            .foreachBatch(foreach_batch_function) \
             .option("checkpointLocation", "/tmp/checkpoint") \
             .start()
 
-        print("Streaming query started successfully")
+        logger.info("Streaming query started. Waiting for data...")
         query.awaitTermination()
+
     except Exception as e:
-        print("Error in streaming application:", str(e))
+        logger.error(f"Error in streaming application: {e}")
         raise
