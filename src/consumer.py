@@ -1,13 +1,3 @@
-try:
-    import eventlet
-    eventlet.monkey_patch()
-except ImportError:
-    print("Eventlet not found, installing required packages...")
-    import subprocess
-    subprocess.check_call(["pip", "install", "eventlet==0.33.3", "werkzeug==2.3.7", "greenlet==2.0.2"])
-    import eventlet
-    eventlet.monkey_patch()
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
