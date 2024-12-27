@@ -8,6 +8,10 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Add these constants at the top
+KAFKA_TOPIC = 'financial_data'
+KAFKA_BOOTSTRAP_SERVERS = 'kafka.default.svc.cluster.local:9092'
+
 # Define the schema for the incoming data
 schema = StructType([
     StructField("stock_symbol", StringType(), True),
@@ -36,7 +40,12 @@ def process_batch(df, epoch_id):
         print("\n" + "="*80)
         print(f"Batch Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Batch ID: {epoch_id}")
+        print(f"Processing data from topic: {KAFKA_TOPIC}")
         print("="*80)
+
+        if df.isEmpty():
+            print("No data received in this batch")
+            return
 
         if not df.isEmpty():
             # Show detailed stock information
@@ -71,16 +80,18 @@ def process_batch(df, epoch_id):
 
 if __name__ == "__main__":
     logger.info("Starting Spark Streaming application...")
-    logger.info(f"Connected to Spark Master: {spark.sparkContext.master}")
+    logger.info(f"Connecting to Kafka topic: {KAFKA_TOPIC}")
+    logger.info(f"Using Kafka bootstrap servers: {KAFKA_BOOTSTRAP_SERVERS}")
 
     try:
-        # Create streaming DataFrame from Kafka
+        # Create streaming DataFrame from Kafka with explicit topic configuration
         streaming_df = spark.readStream \
             .format("kafka") \
-            .option("kafka.bootstrap.servers", "kafka.default.svc.cluster.local:9092") \
-            .option("subscribe", "financial_data") \
+            .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
+            .option("subscribe", KAFKA_TOPIC) \
             .option("startingOffsets", "latest") \
             .option("failOnDataLoss", "false") \
+            .option("maxOffsetsPerTrigger", 100) \
             .load()
 
         # Parse JSON data with more detailed error handling
