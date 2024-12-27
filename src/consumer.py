@@ -6,7 +6,8 @@ from flask_socketio import SocketIO
 import threading
 import json
 import logging
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(
@@ -75,6 +76,26 @@ def handle_connect():
 def handle_disconnect():
     logger.info('Client disconnected from WebSocket')
 
+TRADE_SIGNALS = ['BUY', 'SELL', 'HOLD']
+SIGNAL_PROBABILITY = 0.7  # 70% chance to generate a signal
+
+def generate_trading_signal(price_data):
+    """Generate random trading signal with reasoning"""
+    if random.random() > SIGNAL_PROBABILITY:
+        return None
+        
+    signal = random.choice(TRADE_SIGNALS)
+    confidence = random.uniform(0.6, 0.95)
+    
+    return {
+        'signal': signal,
+        'confidence': confidence,
+        'timestamp': datetime.now().isoformat(),
+        'stock': price_data['stock_symbol'],
+        'price': price_data['current_price'],
+        'reason': f"Algorithm detected potential {signal.lower()} opportunity at ${price_data['current_price']}"
+    }
+
 def foreach_batch_function(df, epoch_id):
     try:
         logger.info(f"\n=== Processing batch {epoch_id} at {datetime.now()} ===")
@@ -96,8 +117,16 @@ def foreach_batch_function(df, epoch_id):
                     'volume': data['volume']
                 }
                 
+                # Generate and emit trading signal
+                trading_signal = generate_trading_signal(formatted_data)
+                if trading_signal:
+                    socketio.emit('trading_signal', trading_signal)
+                    logger.info(f"Trading Signal: {trading_signal['signal']} for {trading_signal['stock']}")
+                
+                # Emit regular stock update
                 socketio.emit('stock_update', formatted_data)
-                logger.info(f"Successfully broadcasted data: {formatted_data['stock_symbol']} - ${formatted_data['current_price']}")
+                logger.info(f"Stock Update: {formatted_data['stock_symbol']} - ${formatted_data['current_price']}")
+                
             except Exception as e:
                 logger.error(f"Failed to broadcast data: {e}")
                 logger.error(f"Raw data: {data}")
