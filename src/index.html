@@ -248,5 +248,81 @@
         // Load historical data on page load
         loadHistoricalData();
     </script>
+
+    <script>
+        // Update WebSocket connection
+        const apiSocket = io('http://192.168.220.128:5000');
+        let liveChart, historicalChart;
+
+        // Create/Update live chart
+        function updateLiveChart(data) {
+            if (!liveChart) {
+                const ctx = document.getElementById('liveChart').getContext('2d');
+                liveChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Live Price',
+                            data: [],
+                            borderColor: '#1a73e8'
+                        }]
+                    },
+                    options: {
+                        animation: false,
+                        responsive: true
+                    }
+                });
+            }
+
+            // Add new data point
+            liveChart.data.labels.push(new Date().toLocaleTimeString());
+            liveChart.data.datasets[0].data.push(data.current_price);
+
+            // Keep last 50 points
+            if (liveChart.data.labels.length > 50) {
+                liveChart.data.labels.shift();
+                liveChart.data.datasets[0].data.shift();
+            }
+
+            liveChart.update();
+        }
+
+        // Load historical data
+        async function loadHistoricalData() {
+            try {
+                const response = await fetch('http://192.168.220.128:5000/api/historical-data');
+                const data = await response.json();
+                
+                const historicalCtx = document.getElementById('historicalChart').getContext('2d');
+                historicalChart = new Chart(historicalCtx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => new Date(d.timestamp * 1000).toLocaleTimeString()),
+                        datasets: [{
+                            label: 'Historical Price',
+                            data: data.map(d => d.current_price),
+                            borderColor: '#34a853'
+                        }]
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+            }
+        }
+
+        // WebSocket event handlers
+        apiSocket.on('live_stock_update', (data) => {
+            updateLiveChart(data);
+            addDataToContainer(data, 'live-data');
+        });
+
+        apiSocket.on('live_trading_signal', (signal) => {
+            showTradeSignal(signal);
+        });
+
+        // Load historical data on page load
+        loadHistoricalData();
+    </script>
 </body>
 </html>
