@@ -8,3 +8,4 @@ kafka-python==2.0.2
 six>=1.16.0
 flask-cors==3.0.10
 websocket-client==1.6.4
+python-engineio==4.7.1
