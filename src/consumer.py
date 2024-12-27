@@ -1,7 +1,9 @@
+import eventlet
+eventlet.monkey_patch()
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
-from flask import Flask
+from flask import Flask, jsonify
 from flask_socketio import SocketIO
 import threading
 import json
@@ -25,6 +27,32 @@ schema = StructType([
     StructField("volume", IntegerType(), True)
 ])
 
+# Add API endpoints
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, 
+    cors_allowed_origins="*", 
+    logger=True, 
+    engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25
+)
+
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "running",
+        "message": "Stock Data WebSocket Server"
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({
+        "status": "healthy",
+        "websocket_port": 6001,
+        "connections": len(socketio.server.eio.clients)
+    })
+
 # Initialize Spark session
 spark = SparkSession.builder \
     .appName("KafkaConsumer") \
@@ -32,9 +60,9 @@ spark = SparkSession.builder \
     .config("spark.driver.bindAddress", "0.0.0.0") \
     .getOrCreate()
 
-# Initialize Flask and SocketIO with logging
+# Initialize Flask and SocketIO with eventlet
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True)
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, async_mode='eventlet')
 
 @socketio.on('connect')
 def handle_connect():
@@ -79,24 +107,26 @@ if __name__ == "__main__":
     logger.info("Starting Spark Streaming and WebSocket server...")
     
     try:
-        # Start WebSocket server thread with logging
+        # Modified WebSocket server configuration
         websocket_thread = threading.Thread(
             target=lambda: socketio.run(
                 app, 
                 host='0.0.0.0', 
-                port=6001, 
-                debug=False, 
-                use_reloader=False
+                port=6001,
+                debug=True,  # Enable debug mode
+                use_reloader=False,
+                log_output=True,
+                allow_unsafe_werkzeug=True
             )
         )
         websocket_thread.daemon = True
         websocket_thread.start()
-        logger.info("WebSocket server started on port 6001")
+        logger.info("WebSocket server started on port 6001 - Test at http://localhost:6001")
         
         # Start Spark streaming
         df = spark.readStream \
             .format("kafka") \
-            .option("kafka.bootstrap.servers", "kafka:9092") \
+            .option("kafka.bootstrap.servers", "localhost:9092") \
             .option("subscribe", "financial_data") \
             .load()
 
