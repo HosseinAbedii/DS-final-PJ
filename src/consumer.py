@@ -1,6 +1,10 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
+from flask import Flask
+from flask_socketio import SocketIO
+import threading
+import json
 
 # Define the schema for the incoming data
 schema = StructType([
@@ -21,12 +25,29 @@ spark = SparkSession.builder \
     .config("spark.driver.bindAddress", "0.0.0.0") \
     .getOrCreate()
 
+# Add Flask and SocketIO initialization
+app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
 def foreach_batch_function(df, epoch_id):
     # Print the batch to terminal
     print(f"\n=== Batch {epoch_id} ===")
     df.show(truncate=False)
+    
+    # Add WebSocket broadcast
+    rows = df.toJSON().collect()
+    for row in rows:
+        data = json.loads(row)
+        socketio.emit('stock_update', data)
 
 if __name__ == "__main__":
+    # Add WebSocket server thread
+    websocket_thread = threading.Thread(
+        target=lambda: socketio.run(app, host='0.0.0.0', port=6001, debug=False, use_reloader=False)
+    )
+    websocket_thread.daemon = True
+    websocket_thread.start()
+    
     # Start Spark streaming
     df = spark.readStream \
         .format("kafka") \
