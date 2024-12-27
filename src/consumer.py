@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Define the schema for the incoming data
+# Update schema without price and timestamp
 schema = StructType([
     StructField("stock_symbol", StringType(), True),
     StructField("opening_price", FloatType(), True),
@@ -50,15 +50,26 @@ def foreach_batch_function(df, epoch_id):
         print(f"\n=== Batch {epoch_id} ===")
         df.show(truncate=False)
         
-        # Add WebSocket broadcast with logging
         rows = df.toJSON().collect()
         for row in rows:
             data = json.loads(row)
             try:
-                socketio.emit('stock_update', data)
-                logger.info(f"Successfully broadcasted data: {data['stock_symbol']} - ${data['price']}")
+                # Create a formatted data object with current price
+                formatted_data = {
+                    'stock_symbol': data['stock_symbol'],
+                    'current_price': data['closing_price'],  # Use closing price as current price
+                    'opening_price': data['opening_price'],
+                    'closing_price': data['closing_price'],
+                    'high': data['high'],
+                    'low': data['low'],
+                    'volume': data['volume']
+                }
+                
+                socketio.emit('stock_update', formatted_data)
+                logger.info(f"Successfully broadcasted data: {formatted_data['stock_symbol']} - ${formatted_data['current_price']}")
             except Exception as e:
                 logger.error(f"Failed to broadcast data: {e}")
+                logger.error(f"Raw data: {data}")
         
         logger.info(f"Processed {len(rows)} records in batch {epoch_id}")
     except Exception as e:
