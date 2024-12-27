@@ -45,7 +45,7 @@ def create_kafka_topic():
             logger.error(f"Error creating topic: {e}")
 
 def forward_to_kafka(data):
-    
+    """Forward stock data to Kafka"""
     try:
         producer = KafkaProducer(
             bootstrap_servers=kafka_bootstrap_servers,
