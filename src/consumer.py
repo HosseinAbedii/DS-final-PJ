@@ -22,9 +22,7 @@ schema = StructType([
     StructField("closing_price", FloatType(), True),
     StructField("high", FloatType(), True),
     StructField("low", FloatType(), True),
-    StructField("volume", IntegerType(), True),
-    StructField("timestamp", LongType(), True),
-    StructField("price", FloatType(), True)
+    StructField("volume", IntegerType(), True)
 ])
 
 # Initialize Spark session
