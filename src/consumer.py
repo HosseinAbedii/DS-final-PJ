@@ -37,12 +37,14 @@ def create_kafka_consumer():
         sys.exit(1)
 
 def process_message(message):
-    """Process each message from Kafka"""
+    """Process each message from Kafka and emit via WebSocket"""
     try:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"[{timestamp}] Received message: {message.value}")
-        # Add your data processing logic here
-        return message.value
+        data = message.value
+        logger.info(f"[{timestamp}] Received message: {data}")
+        # Emit the data through WebSocket
+        socketio.emit('stock_update', data)
+        return data
     except Exception as e:
         logger.error(f"Error processing message: {e}")
         return None
@@ -96,23 +98,49 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 def foreach_batch_function(df, epoch_id):
-    print(f"\n=== Batch {epoch_id} ===")
-    records = df.collect()
-    for record in records:
-        # Convert record to dictionary
-        data = record.asDict()
-        # Broadcast to WebSocket clients
-        socketio.emit('stock_update', data)
-    print("Number of records:", len(records))
-    df.show(truncate=False)
+    try:
+        print(f"\n=== Batch {epoch_id} ===")
+        records = df.collect()
+        for record in records:
+            # Convert record to dictionary and emit via WebSocket
+            data = record.asDict()
+            socketio.emit('stock_update', {
+                'stock_symbol': data.get('stock_symbol'),
+                'price': data.get('price'),
+                'volume': data.get('volume'),
+                'timestamp': data.get('timestamp'),
+                'high': data.get('high'),
+                'low': data.get('low'),
+                'opening_price': data.get('opening_price'),
+                'closing_price': data.get('closing_price')
+            })
+        print(f"Processed and emitted {len(records)} records")
+    except Exception as e:
+        logger.error(f"Error in foreach_batch_function: {e}")
+
+@socketio.on('connect')
+def handle_connect():
+    logger.info('Client connected to WebSocket')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    logger.info('Client disconnected from WebSocket')
 
 if __name__ == "__main__":
     print("Starting Spark Streaming application...")
     print("Connecting to Spark Master:", spark.sparkContext.master)
     
     try:
-        # Start Flask-SocketIO server in a separate thread
-        socketio_thread = threading.Thread(target=lambda: socketio.run(app, host='0.0.0.0', port=6001))
+        # Start Flask-SocketIO server with improved configuration
+        socketio_thread = threading.Thread(
+            target=lambda: socketio.run(
+                app,
+                host='0.0.0.0',
+                port=6001,
+                debug=True,
+                use_reloader=False
+            )
+        )
         socketio_thread.daemon = True
         socketio_thread.start()
 
@@ -138,8 +166,13 @@ if __name__ == "__main__":
             .option("checkpointLocation", "/tmp/checkpoint") \
             .start()
 
+        # Add health check endpoint
+        @app.route('/health')
+        def health_check():
+            return {'status': 'healthy'}, 200
+
         print("Streaming query started successfully")
         query.awaitTermination()
     except Exception as e:
-        print("Error in streaming application:", str(e))
+        logger.error(f"Error in streaming application: {e}")
         raise
