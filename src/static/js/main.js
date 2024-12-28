@@ -422,6 +422,8 @@ async function fetchHistoricalData() {
         const startUTC = new Date(startTime).toISOString();
         const endUTC = new Date(endTime).toISOString();
         
+        console.log(`Fetching data from ${startUTC} to ${endUTC} for stocks: ${selectedStocks.join(',')}`);
+
         const response = await fetch(
             `/api/historical-data?` + new URLSearchParams({
                 start: startUTC,
@@ -430,14 +432,22 @@ async function fetchHistoricalData() {
             })
         );
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const data = await response.json();
+        
+        if (response.status === 500) {
+            throw new Error(data.error || 'Server error');
+        }
         
         if (!data || Object.keys(data).length === 0) {
             showNotification('No data available for selected time range and stocks', 'warning');
+            // Clear existing charts when no data is available
+            const container = document.getElementById('historicalCharts');
+            container.innerHTML = `
+                <div class="col-12 text-center mt-5">
+                    <h4 class="text-muted">No historical data available for the selected period</h4>
+                    <p>Try selecting a different time range or different stocks</p>
+                </div>
+            `;
             return;
         }
 
