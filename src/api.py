@@ -74,59 +74,66 @@ def get_historical_data():
         start_time = request.args.get('start')
         end_time = request.args.get('end')
         stocks = request.args.get('stocks', '').split(',')
-        
-        print(f"Received request for historical data:")
-        print(f"Start time: {start_time}")
-        print(f"End time: {end_time}")
-        print(f"Stocks: {stocks}")
 
-        # Convert ISO timestamps to Unix timestamps
+        print(f"Received request - Start: {start_time}, End: {end_time}, Stocks: {stocks}")
+
+        # Debug Redis connection
         try:
-            start_ts = datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp()
-            end_ts = datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp()
-            print(f"Converted timestamps - Start: {start_ts}, End: {end_ts}")
-        except ValueError as e:
-            print(f"Timestamp conversion error: {e}")
-            return jsonify({"error": f"Invalid datetime format: {e}"}), 400
+            redis_client.ping()
+            print("Redis connection is active")
+        except Exception as e:
+            print(f"Redis connection error: {e}")
+            return jsonify({"error": "Database connection error"}), 500
 
-        # Get all data first to debug
-        all_data = redis_client.zrange(REDIS_KEY, 0, -1, withscores=True)
-        print(f"Total records in Redis: {len(all_data)}")
-        
-        # Get data within time range
-        data = redis_client.zrangebyscore(
-            REDIS_KEY,
-            min=start_ts,
-            max=end_ts,
-            withscores=True
-        )
-        print(f"Found {len(data)} records within time range")
+        # First, get all data to check what's available
+        all_records = redis_client.zrange(REDIS_KEY, 0, -1, withscores=True)
+        print(f"Total records in Redis: {len(all_records)}")
 
-        # Process and group the data by stock symbol
+        if not all_records:
+            print("No data in Redis")
+            return jsonify({"error": "No data available in database"}), 404
+
+        # Process and group all data by stock symbol
         result = {}
-        for item, timestamp in data:
+        for item, score in all_records:
             try:
                 record = json.loads(item)
-                print(f"Processing record: {record}")  # Debug print
                 symbol = record.get('stock_symbol')
-                current_price = record.get('current_price') or record.get('closing_price')
                 
-                if symbol and current_price and (not stocks or symbol in stocks):
-                    if symbol not in result:
-                        result[symbol] = []
-                    record['current_price'] = current_price
-                    record['timestamp'] = timestamp
-                    result[symbol].append(record)
-            except json.JSONDecodeError as e:
-                print(f"Error decoding record: {e}")
+                # Skip if not in requested stocks
+                if stocks and symbol not in stocks:
+                    continue
+
+                # Get price from either current_price or closing_price
+                price = record.get('current_price') or record.get('closing_price')
+                if not price:
+                    continue
+
+                if symbol not in result:
+                    result[symbol] = []
+                
+                record_data = {
+                    'timestamp': score,
+                    'current_price': float(price),
+                    'volume': record.get('volume', 0),
+                    'stock_symbol': symbol
+                }
+                result[symbol].append(record_data)
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Error processing record: {e}")
                 continue
 
-        print(f"Processed results: {json.dumps(result, indent=2)}")
-        
-        if not result:
-            print("No data found for the specified criteria")
-            return jsonify({})
+        # Sort data for each symbol by timestamp
+        for symbol in result:
+            result[symbol].sort(key=lambda x: x['timestamp'])
 
+        if not result:
+            print("No matching data found")
+            return jsonify({}), 200
+
+        print(f"Returning data for symbols: {list(result.keys())}")
+        print(f"Sample data point: {next(iter(result.values()))[0] if result else 'No data'}")
+        
         return jsonify(result)
 
     except Exception as e:
