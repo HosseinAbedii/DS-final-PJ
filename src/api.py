@@ -75,56 +75,62 @@ def get_historical_data():
         end_time = request.args.get('end')
         stocks = request.args.get('stocks', '').split(',')
         
-        if not start_time or not end_time:
-            return jsonify({"error": "Start and end times are required"}), 400
+        print(f"Received request for historical data:")
+        print(f"Start time: {start_time}")
+        print(f"End time: {end_time}")
+        print(f"Stocks: {stocks}")
 
         # Convert ISO timestamps to Unix timestamps
         try:
             start_ts = datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp()
             end_ts = datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp()
+            print(f"Converted timestamps - Start: {start_ts}, End: {end_ts}")
         except ValueError as e:
+            print(f"Timestamp conversion error: {e}")
             return jsonify({"error": f"Invalid datetime format: {e}"}), 400
+
+        # Get all data first to debug
+        all_data = redis_client.zrange(REDIS_KEY, 0, -1, withscores=True)
+        print(f"Total records in Redis: {len(all_data)}")
         
-        # Debug logging
-        print(f"Fetching data from {start_ts} to {end_ts} for stocks: {stocks}")
-        
-        # Get data from Redis within the time range
+        # Get data within time range
         data = redis_client.zrangebyscore(
             REDIS_KEY,
             min=start_ts,
             max=end_ts,
             withscores=True
         )
-        
-        print(f"Found {len(data)} records in Redis")
-        
+        print(f"Found {len(data)} records within time range")
+
         # Process and group the data by stock symbol
         result = {}
         for item, timestamp in data:
             try:
                 record = json.loads(item)
+                print(f"Processing record: {record}")  # Debug print
                 symbol = record.get('stock_symbol')
-                if symbol and (not stocks or symbol in stocks):
+                current_price = record.get('current_price') or record.get('closing_price')
+                
+                if symbol and current_price and (not stocks or symbol in stocks):
                     if symbol not in result:
                         result[symbol] = []
+                    record['current_price'] = current_price
                     record['timestamp'] = timestamp
                     result[symbol].append(record)
             except json.JSONDecodeError as e:
                 print(f"Error decoding record: {e}")
                 continue
-        
-        # Sort data for each symbol by timestamp
-        for symbol in result:
-            result[symbol].sort(key=lambda x: x['timestamp'])
+
+        print(f"Processed results: {json.dumps(result, indent=2)}")
         
         if not result:
-            # Return empty data instead of 404
+            print("No data found for the specified criteria")
             return jsonify({})
-            
+
         return jsonify(result)
-        
+
     except Exception as e:
-        print(f"Error fetching historical data: {e}")
+        print(f"Error in get_historical_data: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # Add debug endpoint for time ranges

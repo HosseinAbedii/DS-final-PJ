@@ -422,25 +422,27 @@ async function fetchHistoricalData() {
         const startUTC = new Date(startTime).toISOString();
         const endUTC = new Date(endTime).toISOString();
         
-        console.log(`Fetching data from ${startUTC} to ${endUTC} for stocks: ${selectedStocks.join(',')}`);
+        console.log('Fetching historical data with params:', {
+            start: startUTC,
+            end: endUTC,
+            stocks: selectedStocks
+        });
 
-        const response = await fetch(
-            `/api/historical-data?` + new URLSearchParams({
-                start: startUTC,
-                end: endUTC,
-                stocks: selectedStocks.join(',')
-            })
-        );
+        const queryParams = new URLSearchParams({
+            start: startUTC,
+            end: endUTC,
+            stocks: selectedStocks.join(',')
+        });
+
+        const response = await fetch(`/api/historical-data?${queryParams}`);
+        console.log('Response status:', response.status);
         
         const data = await response.json();
-        
-        if (response.status === 500) {
-            throw new Error(data.error || 'Server error');
-        }
+        console.log('Received data:', data);
         
         if (!data || Object.keys(data).length === 0) {
+            console.log('No data received from server');
             showNotification('No data available for selected time range and stocks', 'warning');
-            // Clear existing charts when no data is available
             const container = document.getElementById('historicalCharts');
             container.innerHTML = `
                 <div class="col-12 text-center mt-5">
@@ -451,8 +453,10 @@ async function fetchHistoricalData() {
             return;
         }
 
+        console.log('Updating charts with data');
         updateHistoricalCharts(data);
         showNotification('Historical data loaded successfully', 'success');
+
     } catch (error) {
         console.error('Error fetching historical data:', error);
         showNotification(`Error loading historical data: ${error.message}`, 'error');
@@ -460,11 +464,13 @@ async function fetchHistoricalData() {
 }
 
 function updateHistoricalCharts(data) {
+    console.log('Updating historical charts with data:', data);
     const container = document.getElementById('historicalCharts');
-    container.innerHTML = ''; // Clear existing charts
+    container.innerHTML = '';
 
     Object.entries(data).forEach(([symbol, stockData]) => {
-        // Create chart container
+        console.log(`Processing ${symbol} with ${stockData.length} data points`);
+        
         const col = document.createElement('div');
         col.className = 'col-6 mb-4';
         col.innerHTML = `
@@ -475,25 +481,28 @@ function updateHistoricalCharts(data) {
         `;
         container.appendChild(col);
 
-        // Initialize chart
         const ctx = document.getElementById(`historical-${symbol}`).getContext('2d');
         if (historicalCharts[symbol]) {
             historicalCharts[symbol].destroy();
         }
 
+        const chartData = {
+            labels: stockData.map(d => new Date(d.timestamp * 1000).toLocaleString()),
+            datasets: [{
+                label: `${symbol} Price`,
+                data: stockData.map(d => d.current_price),
+                borderColor: getStockColor(symbol),
+                backgroundColor: `${getStockColor(symbol)}33`,
+                borderWidth: 2,
+                fill: true
+            }]
+        };
+
+        console.log(`Chart data for ${symbol}:`, chartData);
+
         historicalCharts[symbol] = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: stockData.map(d => new Date(d.timestamp * 1000).toLocaleString()),
-                datasets: [{
-                    label: `${symbol} Price`,
-                    data: stockData.map(d => d.current_price),
-                    borderColor: getStockColor(symbol),
-                    backgroundColor: `${getStockColor(symbol)}33`,
-                    borderWidth: 2,
-                    fill: true
-                }]
-            },
+            data: chartData,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
