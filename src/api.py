@@ -20,8 +20,8 @@ CONSUMER_PORT = int(os.getenv('CONSUMER_PORT', 6001))
 CONSUMER_URL = os.getenv('CONSUMER_URL', 'http://spark-consumer-service.default.svc.cluster.local:6001')
 
 app = Flask(__name__, 
-    static_folder='static',  
-    template_folder='templates'  
+    static_folder='/app/static',  # Update static folder path
+    template_folder='/app/templates'  # Update template folder path
 )
 CORS(app)
 socket_app = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')

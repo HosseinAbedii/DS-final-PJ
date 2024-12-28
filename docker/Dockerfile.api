@@ -7,9 +7,18 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install flask-socketio python-socketio eventlet
 
+# Create directories and ensure they exist
+RUN mkdir -p /app/templates /app/static
+
+# Copy application files (note the changed order and paths)
+COPY src/templates/. /app/templates/
+COPY src/static/. /app/static/
 COPY src/api.py .
 
 ENV PYTHONUNBUFFERED=1
-EXPOSE 6000
+EXPOSE 5001
+
+# Debug: List contents of directories
+RUN ls -la /app/templates && ls -la /app/static
 
 CMD ["python", "api.py"]
