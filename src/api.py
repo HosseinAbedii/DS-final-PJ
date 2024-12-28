@@ -14,7 +14,7 @@ API_PORT = 5001
 API_HOST = '0.0.0.0'
 
 # Redis configuration from environment variables
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis-service')  # Default to kubernetes service name
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis.default.svc.cluster.local')  # Use full DNS name
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 
@@ -98,9 +98,11 @@ def on_trading_signal(data):
 def connect_to_consumer():
     while True:
         try:
-            consumer_url = os.getenv('CONSUMER_URL', 'http://spark-consumer-service:6001')
+            # Use the service's cluster DNS name
+            consumer_url = os.getenv('CONSUMER_URL', 'http://spark-consumer-service.default.svc.cluster.local:6001')
+            print(f"Attempting to connect to consumer at: {consumer_url}")
             sio.connect(consumer_url)
-            print(f"Successfully connected to consumer WebSocket at {consumer_url}")
+            print(f"Successfully connected to consumer WebSocket")
             break
         except Exception as e:
             print(f"Connection error: {e}, retrying in 5 seconds...")
