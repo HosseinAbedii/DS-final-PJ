@@ -36,13 +36,16 @@ html, body {
 /* Side Panel Styles */
 .side-panel {
     height: calc(100vh - 4rem);
+    overflow: hidden;
 }
 
 .live-updates-card,
 .trading-signals-card {
     background-color: var(--bg-card) !important;
     border: 1px solid var(--border-dark);
-    height: calc(50% - 1rem);
+    max-height: calc(50vh - 2rem);
+    display: flex;
+    flex-direction: column;
 }
 
 .card-header {
@@ -51,9 +54,18 @@ html, body {
     color: var(--text-primary);
 }
 
+.card-body {
+    background-color: var(--bg-darker) !important;
+    padding: 0.5rem;
+    flex: 1;
+    overflow: hidden;
+}
+
 .data-scroll {
-    height: calc(100% - 2.5rem);
+    height: 100%;
     overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem;
     scrollbar-width: thin;
     scrollbar-color: var(--border-dark) var(--bg-card);
 }
@@ -64,7 +76,8 @@ html, body {
 }
 
 .data-scroll::-webkit-scrollbar-track {
-    background: var(--bg-card);
+    background: var(--bg-darker);
+    border-radius: 3px;
 }
 
 .data-scroll::-webkit-scrollbar-thumb {
@@ -72,20 +85,26 @@ html, body {
     border-radius: 3px;
 }
 
-.stock-item {
-    background-color: var(--bg-darker);
+.data-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-secondary);
+}
+
+.stock-item,
+.signal-item {
+    background-color: var(--bg-card);
     border-left: 4px solid;
     margin-bottom: 0.5rem;
     padding: 0.75rem;
     border-radius: 4px;
+    transition: transform 0.2s;
+}
+
+.stock-item:hover,
+.signal-item:hover {
+    transform: translateX(2px);
+    background-color: var(--bg-hover);
 }
 
 .signal-indicator {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Card body background */
-.card-body {
-    background-color: var(--bg-darker) !important;
-    padding: 1rem;
 }
