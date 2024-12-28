@@ -33,4 +33,59 @@ html, body {
     margin-bottom: 1rem;
 }
 
-/* Rest of your existing CSS styles... */
+/* Side Panel Styles */
+.side-panel {
+    height: calc(100vh - 4rem);
+}
+
+.live-updates-card,
+.trading-signals-card {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-dark);
+    height: calc(50% - 1rem);
+}
+
+.card-header {
+    background-color: var(--bg-darker) !important;
+    border-bottom: 1px solid var(--border-dark);
+    color: var(--text-primary);
+}
+
+.data-scroll {
+    height: calc(100% - 2.5rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-dark) var(--bg-card);
+}
+
+/* Webkit scrollbar styles */
+.data-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.data-scroll::-webkit-scrollbar-track {
+    background: var(--bg-card);
+}
+
+.data-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--border-dark);
+    border-radius: 3px;
+}
+
+.stock-item {
+    background-color: var(--bg-darker);
+    border-left: 4px solid;
+    margin-bottom: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.signal-indicator {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Card body background */
+.card-body {
+    background-color: var(--bg-darker) !important;
+    padding: 1rem;
+}
