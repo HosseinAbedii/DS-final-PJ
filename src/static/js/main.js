@@ -305,7 +305,145 @@ socket.on('connect_error', (error) => {
     showNotification(`Connection Error: ${error.message}`, 'warning');
 });
 
-// Load initial data when page loads
+// Historical data handling
+const historicalCharts = {};
+
+function initializeHistoricalControls() {
+    const liveViewBtn = document.getElementById('liveViewBtn');
+    const historicalViewBtn = document.getElementById('historicalViewBtn');
+    const historicalControls = document.getElementById('historicalControls');
+    const timePreset = document.getElementById('timePreset');
+    const startTime = document.getElementById('startTime');
+    const endTime = document.getElementById('endTime');
+    const fetchBtn = document.getElementById('fetchHistorical');
+
+    liveViewBtn.addEventListener('click', () => switchView('live'));
+    historicalViewBtn.addEventListener('click', () => switchView('historical'));
+
+    timePreset.addEventListener('change', (e) => {
+        if (e.target.value) {
+            const now = new Date();
+            const hours = {
+                '1h': 1, '4h': 4, '1d': 24, '7d': 168
+            }[e.target.value];
+            
+            endTime.value = now.toISOString().slice(0, 16);
+            const start = new Date(now - hours * 3600000);
+            startTime.value = start.toISOString().slice(0, 16);
+        }
+    });
+
+    fetchBtn.addEventListener('click', fetchHistoricalData);
+}
+
+function switchView(view) {
+    const liveView = document.getElementById('liveView');
+    const historicalView = document.getElementById('historicalView');
+    const historicalControls = document.getElementById('historicalControls');
+    const liveViewBtn = document.getElementById('liveViewBtn');
+    const historicalViewBtn = document.getElementById('historicalViewBtn');
+
+    if (view === 'historical') {
+        liveView.style.display = 'none';
+        historicalView.style.display = 'block';
+        historicalControls.style.display = 'block';
+        liveViewBtn.classList.remove('active');
+        historicalViewBtn.classList.add('active');
+    } else {
+        liveView.style.display = 'block';
+        historicalView.style.display = 'none';
+        historicalControls.style.display = 'none';
+        liveViewBtn.classList.add('active');
+        historicalViewBtn.classList.remove('active');
+    }
+}
+
+async function fetchHistoricalData() {
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+
+    if (!startTime || !endTime) {
+        showNotification('Please select both start and end times', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/historical-data?start=${startTime}&end=${endTime}`);
+        const data = await response.json();
+        
+        if (!data || Object.keys(data).length === 0) {
+            showNotification('No data available for selected time range', 'warning');
+            return;
+        }
+
+        updateHistoricalCharts(data);
+        showNotification('Historical data loaded successfully', 'success');
+    } catch (error) {
+        console.error('Error fetching historical data:', error);
+        showNotification('Error loading historical data', 'error');
+    }
+}
+
+function updateHistoricalCharts(data) {
+    const container = document.getElementById('historicalCharts');
+    container.innerHTML = ''; // Clear existing charts
+
+    Object.entries(data).forEach(([symbol, stockData]) => {
+        // Create chart container
+        const col = document.createElement('div');
+        col.className = 'col-6 mb-4';
+        col.innerHTML = `
+            <div class="chart-card">
+                <h5 class="chart-title">${symbol}</h5>
+                <canvas id="historical-${symbol}"></canvas>
+            </div>
+        `;
+        container.appendChild(col);
+
+        // Initialize chart
+        const ctx = document.getElementById(`historical-${symbol}`).getContext('2d');
+        if (historicalCharts[symbol]) {
+            historicalCharts[symbol].destroy();
+        }
+
+        historicalCharts[symbol] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: stockData.map(d => new Date(d.timestamp).toLocaleString()),
+                datasets: [{
+                    label: `${symbol} Price`,
+                    data: stockData.map(d => d.price),
+                    borderColor: getStockColor(symbol),
+                    backgroundColor: `${getStockColor(symbol)}33`,
+                    borderWidth: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: value => `$${value.toFixed(2)}`
+                        }
+                    }
+                }
+            }
+        });
+    });
+}
+
+// Initialize controls when page loads
 document.addEventListener('DOMContentLoaded', () => {
     loadInitialData();
+    initializeHistoricalControls();
 });

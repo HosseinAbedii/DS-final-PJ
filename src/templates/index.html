@@ -13,61 +13,112 @@
     <h1>Stock Trading Dashboard</h1>
     <div id="data">Loading...</div>
     <div class="container-fluid py-3">
-        <div class="row">
-            <!-- Charts Column (10/12) -->
-            <div class="col-10">
-                <div class="row">
-                    <div class="col-6 mb-4">
-                        <div class="chart-card">
-                            <h5 class="chart-title">Apple (AAPL)</h5>
-                            <canvas id="chartAAPL"></canvas>
+        <!-- View Controls -->
+        <div class="view-toggle-container mb-4">
+            <div class="btn-group" role="group">
+                <button class="btn btn-primary active" id="liveViewBtn">Live View</button>
+                <button class="btn btn-primary" id="historicalViewBtn">Historical View</button>
+            </div>
+        </div>
+
+        <!-- Historical Controls -->
+        <div id="historicalControls" class="history-controls mb-4" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-auto">
+                            <label class="form-label">Preset Ranges:</label>
+                            <select class="form-select" id="timePreset">
+                                <option value="">Custom Range</option>
+                                <option value="1h">Last Hour</option>
+                                <option value="4h">Last 4 Hours</option>
+                                <option value="1d">Last 24 Hours</option>
+                                <option value="7d">Last 7 Days</option>
+                            </select>
                         </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="chart-card">
-                            <h5 class="chart-title">Google (GOOGL)</h5>
-                            <canvas id="chartGOOGL"></canvas>
+                        <div class="col-auto">
+                            <label class="form-label">Start Time:</label>
+                            <input type="datetime-local" class="form-control" id="startTime">
                         </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="chart-card">
-                            <h5 class="chart-title">Amazon (AMZN)</h5>
-                            <canvas id="chartAMZN"></canvas>
+                        <div class="col-auto">
+                            <label class="form-label">End Time:</label>
+                            <input type="datetime-local" class="form-control" id="endTime">
                         </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="chart-card">
-                            <h5 class="chart-title">Microsoft (MSFT)</h5>
-                            <canvas id="chartMSFT"></canvas>
-                        </div>
-                    </div>
-                    <div class="col-6 mb-4">
-                        <div class="chart-card">
-                            <h5 class="chart-title">Tesla (TSLA)</h5>
-                            <canvas id="chartTSLA"></canvas>
+                        <div class="col-auto align-self-end">
+                            <button class="btn btn-primary" id="fetchHistorical">Load Historical Data</button>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Data Column (2/12) -->
-            <div class="col-2 side-panel">
-                <div class="card live-updates-card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">Live Updates</h6>
-                        <span class="badge bg-primary" id="update-count">0</span>
-                    </div>
-                    <div class="card-body p-2">
-                        <div class="data-scroll" id="stockContent"></div>
+        <!-- Views Container -->
+        <div id="liveView">
+            <div class="row">
+                <div class="col-10">
+                    <div class="row">
+                        <div class="col-6 mb-4">
+                            <div class="chart-card">
+                                <h5 class="chart-title">Apple (AAPL)</h5>
+                                <canvas id="chartAAPL"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <div class="chart-card">
+                                <h5 class="chart-title">Google (GOOGL)</h5>
+                                <canvas id="chartGOOGL"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <div class="chart-card">
+                                <h5 class="chart-title">Amazon (AMZN)</h5>
+                                <canvas id="chartAMZN"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <div class="chart-card">
+                                <h5 class="chart-title">Microsoft (MSFT)</h5>
+                                <canvas id="chartMSFT"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-4">
+                            <div class="chart-card">
+                                <h5 class="chart-title">Tesla (TSLA)</h5>
+                                <canvas id="chartTSLA"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card trading-signals-card">
-                    <div class="card-header">
-                        <h6 class="mb-0">Trading Signals</h6>
+                <!-- Data Column (2/12) -->
+                <div class="col-2 side-panel">
+                    <div class="card live-updates-card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Live Updates</h6>
+                            <span class="badge bg-primary" id="update-count">0</span>
+                        </div>
+                        <div class="card-body p-2">
+                            <div class="data-scroll" id="stockContent"></div>
+                        </div>
                     </div>
-                    <div class="card-body p-2">
-                        <div class="data-scroll" id="signalContent"></div>
+
+                    <div class="card trading-signals-card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Trading Signals</h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <div class="data-scroll" id="signalContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="historicalView" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="row" id="historicalCharts">
+                        <!-- Historical charts will be dynamically added here -->
                     </div>
                 </div>
             </div>
