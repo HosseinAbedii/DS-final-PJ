@@ -77,13 +77,16 @@ def get_historical_data():
         
         if not start_time or not end_time:
             return jsonify({"error": "Start and end times are required"}), 400
-            
+
         # Convert ISO timestamps to Unix timestamps
         try:
             start_ts = datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp()
             end_ts = datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp()
         except ValueError as e:
             return jsonify({"error": f"Invalid datetime format: {e}"}), 400
+        
+        # Debug logging
+        print(f"Fetching data from {start_ts} to {end_ts} for stocks: {stocks}")
         
         # Get data from Redis within the time range
         data = redis_client.zrangebyscore(
@@ -92,6 +95,8 @@ def get_historical_data():
             max=end_ts,
             withscores=True
         )
+        
+        print(f"Found {len(data)} records in Redis")
         
         # Process and group the data by stock symbol
         result = {}
@@ -104,7 +109,8 @@ def get_historical_data():
                         result[symbol] = []
                     record['timestamp'] = timestamp
                     result[symbol].append(record)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                print(f"Error decoding record: {e}")
                 continue
         
         # Sort data for each symbol by timestamp
@@ -112,7 +118,8 @@ def get_historical_data():
             result[symbol].sort(key=lambda x: x['timestamp'])
         
         if not result:
-            return jsonify({"message": "No data found for the specified time range"}), 404
+            # Return empty data instead of 404
+            return jsonify({})
             
         return jsonify(result)
         
