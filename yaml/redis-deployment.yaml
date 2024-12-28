@@ -14,6 +14,7 @@ spec:
       containers:
       - name: redis
         image: redis:latest
+        imagePullPolicy: IfNotPresent  # Only pull if not present locally
         ports:
         - containerPort: 6379
 ---
