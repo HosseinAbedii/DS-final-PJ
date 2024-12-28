@@ -6,18 +6,42 @@ import json
 import socketio
 import threading
 import time
+import os
 from datetime import datetime, timedelta
 
 # Change these constants
-API_PORT = 5001  # Changed from 5000
+API_PORT = 5001
 API_HOST = '0.0.0.0'
+
+# Redis configuration from environment variables
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis-service')  # Default to kubernetes service name
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 
 app = Flask(__name__)
 CORS(app)
 socket_app = SocketIO(app, cors_allowed_origins="*")
 
-# Redis configuration
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+# Redis configuration with retry mechanism
+def get_redis_client():
+    while True:
+        try:
+            client = redis.Redis(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                password=REDIS_PASSWORD,
+                decode_responses=True,
+                socket_timeout=5,
+                retry_on_timeout=True
+            )
+            client.ping()  # Test the connection
+            print(f"Successfully connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
+            return client
+        except redis.ConnectionError as e:
+            print(f"Failed to connect to Redis: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
+
+redis_client = get_redis_client()
 REDIS_KEY = "stock_data"
 MAX_STORED_RECORDS = 1000
 
@@ -74,7 +98,7 @@ def on_trading_signal(data):
 def connect_to_consumer():
     while True:
         try:
-            sio.connect('http://192.168.220.128:6001')
+            sio.connect('http://localhost:6001')
             print(f"Successfully connected to consumer WebSocket")
             break
         except Exception as e:
