@@ -98,8 +98,9 @@ def on_trading_signal(data):
 def connect_to_consumer():
     while True:
         try:
-            sio.connect('http://localhost:6001')
-            print(f"Successfully connected to consumer WebSocket")
+            consumer_url = os.getenv('CONSUMER_URL', 'http://spark-consumer-service:6001')
+            sio.connect(consumer_url)
+            print(f"Successfully connected to consumer WebSocket at {consumer_url}")
             break
         except Exception as e:
             print(f"Connection error: {e}, retrying in 5 seconds...")
