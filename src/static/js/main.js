@@ -305,6 +305,35 @@ socket.on('connect_error', (error) => {
     showNotification(`Connection Error: ${error.message}`, 'warning');
 });
 
+// Add this function before initializeHistoricalControls
+function switchView(view) {
+    const liveView = document.getElementById('liveView');
+    const historicalView = document.getElementById('historicalView');
+    const historicalControls = document.getElementById('historicalControls');
+    const liveViewBtn = document.getElementById('liveViewBtn');
+    const historicalViewBtn = document.getElementById('historicalViewBtn');
+
+    if (view === 'historical') {
+        liveView.style.display = 'none';
+        historicalView.style.display = 'block';
+        historicalControls.style.display = 'block';
+        liveViewBtn.classList.remove('active');
+        historicalViewBtn.classList.add('active');
+        // Stop receiving live updates when in historical view
+        socket.disconnect();
+    } else {
+        liveView.style.display = 'block';
+        historicalView.style.display = 'none';
+        historicalControls.style.display = 'none';
+        liveViewBtn.classList.add('active');
+        historicalViewBtn.classList.remove('active');
+        // Reconnect socket for live updates
+        socket.connect();
+        // Refresh live data
+        loadInitialData();
+    }
+}
+
 // Historical data handling
 const historicalCharts = {};
 
