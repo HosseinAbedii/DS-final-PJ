@@ -57,6 +57,7 @@ def store_in_redis(data):
         redis_client.zadd(REDIS_KEY, {json.dumps(data): timestamp})
         # Trim old data
         redis_client.zremrangebyrank(REDIS_KEY, 0, -MAX_STORED_RECORDS-1)
+        print(f"Data successfully stored in Redis at timestamp {timestamp}")
         return True
     except Exception as e:
         print(f"Redis store error: {e}")
