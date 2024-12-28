@@ -79,8 +79,11 @@ def get_historical_data():
             return jsonify({"error": "Start and end times are required"}), 400
             
         # Convert ISO timestamps to Unix timestamps
-        start_ts = datetime.fromisoformat(start_time.replace('Z', '')).timestamp()
-        end_ts = datetime.fromisoformat(end_time.replace('Z', '')).timestamp()
+        try:
+            start_ts = datetime.fromisoformat(start_time.replace('Z', '+00:00')).timestamp()
+            end_ts = datetime.fromisoformat(end_time.replace('Z', '+00:00')).timestamp()
+        except ValueError as e:
+            return jsonify({"error": f"Invalid datetime format: {e}"}), 400
         
         # Get data from Redis within the time range
         data = redis_client.zrangebyscore(
@@ -93,18 +96,23 @@ def get_historical_data():
         # Process and group the data by stock symbol
         result = {}
         for item, timestamp in data:
-            record = json.loads(item)
-            symbol = record.get('stock_symbol')
-            # Filter by selected stocks if specified
-            if symbol and (not stocks or symbol in stocks):
-                if symbol not in result:
-                    result[symbol] = []
-                record['timestamp'] = timestamp
-                result[symbol].append(record)
+            try:
+                record = json.loads(item)
+                symbol = record.get('stock_symbol')
+                if symbol and (not stocks or symbol in stocks):
+                    if symbol not in result:
+                        result[symbol] = []
+                    record['timestamp'] = timestamp
+                    result[symbol].append(record)
+            except json.JSONDecodeError:
+                continue
         
         # Sort data for each symbol by timestamp
         for symbol in result:
             result[symbol].sort(key=lambda x: x['timestamp'])
+        
+        if not result:
+            return jsonify({"message": "No data found for the specified time range"}), 404
             
         return jsonify(result)
         
