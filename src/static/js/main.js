@@ -370,29 +370,15 @@ async function initializeHistoricalControls() {
     timePreset.addEventListener('change', (e) => {
         if (e.target.value) {
             const now = new Date();
-            let start = new Date(now);
+            const hours = {
+                '1h': 1, '4h': 4, '1d': 24, '7d': 168
+            }[e.target.value];
             
-            switch(e.target.value) {
-                case '1h':
-                    start.setHours(now.getHours() - 1);
-                    break;
-                case '4h':
-                    start.setHours(now.getHours() - 4);
-                    break;
-                case '1d':
-                    start.setDate(now.getDate() - 1);
-                    break;
-                case '7d':
-                    start.setDate(now.getDate() - 7);
-                    break;
-            }
+            const end = new Date();
+            const start = new Date(end - hours * 3600000);
             
-            // Format dates for datetime-local input
-            endTime.value = now.toISOString().slice(0, 16);
+            endTime.value = end.toISOString().slice(0, 16);
             startTime.value = start.toISOString().slice(0, 16);
-            
-            // Automatically fetch data when preset is selected
-            fetchHistoricalData();
         }
     });
 
@@ -418,36 +404,18 @@ async function fetchHistoricalData() {
     try {
         showNotification('Fetching historical data...', 'info');
         
-        // Convert local datetime to UTC ISO string
-        const startUTC = new Date(startTime).toISOString();
-        const endUTC = new Date(endTime).toISOString();
-        
-        console.log(`Fetching data from ${startUTC} to ${endUTC} for stocks: ${selectedStocks.join(',')}`);
-
         const response = await fetch(
-            `/api/historical-data?` + new URLSearchParams({
-                start: startUTC,
-                end: endUTC,
-                stocks: selectedStocks.join(',')
-            })
+            `/api/historical-data?start=${encodeURIComponent(startTime)}&end=${encodeURIComponent(endTime)}&stocks=${selectedStocks.join(',')}`
         );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const data = await response.json();
         
-        if (response.status === 500) {
-            throw new Error(data.error || 'Server error');
-        }
-        
         if (!data || Object.keys(data).length === 0) {
             showNotification('No data available for selected time range and stocks', 'warning');
-            // Clear existing charts when no data is available
-            const container = document.getElementById('historicalCharts');
-            container.innerHTML = `
-                <div class="col-12 text-center mt-5">
-                    <h4 class="text-muted">No historical data available for the selected period</h4>
-                    <p>Try selecting a different time range or different stocks</p>
-                </div>
-            `;
             return;
         }
 
