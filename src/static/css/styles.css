@@ -1,0 +1,36 @@
+:root {
+    --bg-dark: #0a0a0a;
+    --bg-darker: #070707;
+    --bg-card: #1a1a1a;
+    --bg-hover: #2a2a2a;
+    --border-dark: #333;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #eab308;
+    --info: #3b82f6;
+}
+
+html, body {
+    background-color: var(--bg-darker) !important;
+    color: var(--text-primary) !important;
+    min-height: 100vh;
+}
+
+.container-fluid {
+    background-color: var(--bg-dark) !important;
+    padding: 2rem;
+    min-height: 100vh;
+}
+
+/* Chart styles */
+.chart-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-dark);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    height: 400px;
+    margin-bottom: 1rem;
+}
+
+/* Rest of your existing CSS styles... */

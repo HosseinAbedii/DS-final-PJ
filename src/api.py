@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import redis
@@ -18,7 +18,10 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'redis.default.svc.cluster.local')  # Use f
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 
-app = Flask(__name__)
+app = Flask(__name__, 
+    static_folder='static',  # Add this line
+    template_folder='templates'  # And this line
+)
 CORS(app)
 socket_app = SocketIO(app, cors_allowed_origins="*")
 
@@ -99,6 +102,43 @@ def get_last_records(count):
         data = redis_client.zrange(REDIS_KEY, -count, -1, withscores=True)
         result = []
         for item, score in data:
+            record = json.loads(item)
+            record['timestamp'] = score
+            result.append(record)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Add new route to serve index.html
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Add new endpoint for fetching live data
+@app.route('/api/live-data')
+def get_live_data():
+    """Get most recent data from Redis"""
+    try:
+        # Get last 50 records from Redis sorted set
+        data = redis_client.zrange(REDIS_KEY, -50, -1, withscores=True)
+        result = []
+        for item, score in data:
+            record = json.loads(item)
+            record['timestamp'] = score
+            result.append(record)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Add endpoint for fetching trading signals
+@app.route('/api/trading-signals')
+def get_trading_signals():
+    """Get trading signals from Redis"""
+    try:
+        # Get signals from Redis (assuming they're stored with a different key)
+        signals = redis_client.zrange(REDIS_KEY + "_signals", -50, -1, withscores=True)
+        result = []
+        for item, score in signals:
             record = json.loads(item)
             record['timestamp'] = score
             result.append(record)
