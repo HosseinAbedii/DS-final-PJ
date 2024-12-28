@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, send_from_directory
+from flask import Flask, jsonify, render_template, send_from_directory, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import redis
@@ -12,11 +12,12 @@ from datetime import datetime, timedelta
 # Kubernetes environment configuration
 API_PORT = int(os.getenv('API_PORT', 5001))
 API_HOST = os.getenv('API_HOST', '0.0.0.0')
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis-service')  # Use K8s service name
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis.default.svc.cluster.local')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
 CONSUMER_SERVICE = os.getenv('CONSUMER_SERVICE', 'spark-consumer-service')
 CONSUMER_PORT = int(os.getenv('CONSUMER_PORT', 6001))
+CONSUMER_URL = os.getenv('CONSUMER_URL', 'http://spark-consumer-service.default.svc.cluster.local:6001')
 
 app = Flask(__name__, 
     static_folder='static',  
@@ -112,7 +113,21 @@ def get_last_records(count):
 # Add new route to serve index.html
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        print(f"Error serving index.html: {e}")
+        return f"Error loading template: {str(e)}", 500
+
+# Add a route for debugging template paths
+@app.route('/debug/paths')
+def debug_paths():
+    return {
+        'template_folder': app.template_folder,
+        'static_folder': app.static_folder,
+        'root_path': app.root_path,
+        'templates_list': os.listdir(app.template_folder) if os.path.exists(app.template_folder) else []
+    }
 
 # Add new endpoint for fetching live data
 @app.route('/api/live-data')
