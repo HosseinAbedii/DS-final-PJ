@@ -77,6 +77,34 @@ def get_historical_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/debug/redis-stats')
+def get_redis_stats():
+    """Debug endpoint to check Redis data statistics"""
+    try:
+        stats = {
+            'total_records': redis_client.zcard(REDIS_KEY),
+            'latest_timestamp': redis_client.zrange(REDIS_KEY, -1, -1, withscores=True),
+            'first_record': redis_client.zrange(REDIS_KEY, 0, 0, withscores=True),
+            'last_record': redis_client.zrange(REDIS_KEY, -1, -1, withscores=True)
+        }
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/debug/last-records/<int:count>')
+def get_last_records(count):
+    """Debug endpoint to get last N records"""
+    try:
+        data = redis_client.zrange(REDIS_KEY, -count, -1, withscores=True)
+        result = []
+        for item, score in data:
+            record = json.loads(item)
+            record['timestamp'] = score
+            result.append(record)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @sio.on('connect')
 def on_connect():
     print('Connected to consumer WebSocket')
