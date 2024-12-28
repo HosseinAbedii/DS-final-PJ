@@ -370,15 +370,29 @@ async function initializeHistoricalControls() {
     timePreset.addEventListener('change', (e) => {
         if (e.target.value) {
             const now = new Date();
-            const hours = {
-                '1h': 1, '4h': 4, '1d': 24, '7d': 168
-            }[e.target.value];
+            let start = new Date(now);
             
-            const end = new Date();
-            const start = new Date(end - hours * 3600000);
+            switch(e.target.value) {
+                case '1h':
+                    start.setHours(now.getHours() - 1);
+                    break;
+                case '4h':
+                    start.setHours(now.getHours() - 4);
+                    break;
+                case '1d':
+                    start.setDate(now.getDate() - 1);
+                    break;
+                case '7d':
+                    start.setDate(now.getDate() - 7);
+                    break;
+            }
             
-            endTime.value = end.toISOString().slice(0, 16);
+            // Format dates for datetime-local input
+            endTime.value = now.toISOString().slice(0, 16);
             startTime.value = start.toISOString().slice(0, 16);
+            
+            // Automatically fetch data when preset is selected
+            fetchHistoricalData();
         }
     });
 
@@ -404,8 +418,16 @@ async function fetchHistoricalData() {
     try {
         showNotification('Fetching historical data...', 'info');
         
+        // Convert local datetime to UTC ISO string
+        const startUTC = new Date(startTime).toISOString();
+        const endUTC = new Date(endTime).toISOString();
+        
         const response = await fetch(
-            `/api/historical-data?start=${encodeURIComponent(startTime)}&end=${encodeURIComponent(endTime)}&stocks=${selectedStocks.join(',')}`
+            `/api/historical-data?` + new URLSearchParams({
+                start: startUTC,
+                end: endUTC,
+                stocks: selectedStocks.join(',')
+            })
         );
         
         if (!response.ok) {
