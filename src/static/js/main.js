@@ -417,43 +417,42 @@ async function fetchHistoricalData() {
 
     try {
         showNotification('Fetching historical data...', 'info');
-        
-        // Convert local datetime to UTC ISO string
-        const startUTC = new Date(startTime).toISOString();
-        const endUTC = new Date(endTime).toISOString();
-        
-        console.log('Fetching historical data with params:', {
-            start: startUTC,
-            end: endUTC,
-            stocks: selectedStocks
+
+        // Debug output
+        console.log('Fetching data for:', {
+            startTime,
+            endTime,
+            selectedStocks
         });
 
         const queryParams = new URLSearchParams({
-            start: startUTC,
-            end: endUTC,
+            start: startTime,
+            end: endTime,
             stocks: selectedStocks.join(',')
         });
 
         const response = await fetch(`/api/historical-data?${queryParams}`);
         console.log('Response status:', response.status);
-        
+
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
+        }
+
         const data = await response.json();
         console.log('Received data:', data);
-        
-        if (!data || Object.keys(data).length === 0) {
-            console.log('No data received from server');
+
+        if (response.status === 404 || !data || Object.keys(data).length === 0) {
             showNotification('No data available for selected time range and stocks', 'warning');
             const container = document.getElementById('historicalCharts');
             container.innerHTML = `
                 <div class="col-12 text-center mt-5">
-                    <h4 class="text-muted">No historical data available for the selected period</h4>
-                    <p>Try selecting a different time range or different stocks</p>
+                    <h4 class="text-muted">No historical data available</h4>
+                    <p>No data found for the selected stocks in this time range.</p>
                 </div>
             `;
             return;
         }
 
-        console.log('Updating charts with data');
         updateHistoricalCharts(data);
         showNotification('Historical data loaded successfully', 'success');
 
