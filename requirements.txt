@@ -11,3 +11,5 @@ websocket-client==1.6.4
 python-engineio==4.7.1
 werkzeug==2.3.7
 redis==5.0.1
+gevent-websocket==0.10.1
+gevent==22.10.2

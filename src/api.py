@@ -9,21 +9,21 @@ import time
 import os
 from datetime import datetime, timedelta
 
-# Change these constants
-API_PORT = 5001
-API_HOST = '0.0.0.0'
-
-# Redis configuration from environment variables
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis.default.svc.cluster.local')  # Use full DNS name
+# Kubernetes environment configuration
+API_PORT = int(os.getenv('API_PORT', 5001))
+API_HOST = os.getenv('API_HOST', '0.0.0.0')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis-service')  # Use K8s service name
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+CONSUMER_SERVICE = os.getenv('CONSUMER_SERVICE', 'spark-consumer-service')
+CONSUMER_PORT = int(os.getenv('CONSUMER_PORT', 6001))
 
 app = Flask(__name__, 
-    static_folder='static',  # Add this line
-    template_folder='templates'  # And this line
+    static_folder='static',  
+    template_folder='templates'  
 )
 CORS(app)
-socket_app = SocketIO(app, cors_allowed_origins="*")
+socket_app = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 # Redis configuration with retry mechanism
 def get_redis_client():
@@ -118,6 +118,7 @@ def index():
 @app.route('/api/live-data')
 def get_live_data():
     """Get most recent data from Redis"""
+    """Get most recent data from Redis"""
     try:
         # Get last 50 records from Redis sorted set
         data = redis_client.zrange(REDIS_KEY, -50, -1, withscores=True)
@@ -167,8 +168,7 @@ def on_trading_signal(data):
 def connect_to_consumer():
     while True:
         try:
-            # Use the service's cluster DNS name
-            consumer_url = os.getenv('CONSUMER_URL', 'http://spark-consumer-service.default.svc.cluster.local:6001')
+            consumer_url = f"http://{CONSUMER_SERVICE}:{CONSUMER_PORT}"
             print(f"Attempting to connect to consumer at: {consumer_url}")
             sio.connect(consumer_url)
             print(f"Successfully connected to consumer WebSocket")
@@ -178,18 +178,17 @@ def connect_to_consumer():
             time.sleep(5)
 
 if __name__ == '__main__':
-    print(f"Starting API server on port {API_PORT}...")
+    print(f"Starting API server on {API_HOST}:{API_PORT}")
+    print(f"Redis host: {REDIS_HOST}:{REDIS_PORT}")
+    print(f"Consumer service: {CONSUMER_SERVICE}:{CONSUMER_PORT}")
     
-    # Start consumer connection in background
     consumer_thread = threading.Thread(target=connect_to_consumer)
     consumer_thread.daemon = True
     consumer_thread.start()
     
-    # Start Flask-SocketIO on new port
     socket_app.run(app, 
         host=API_HOST, 
         port=API_PORT, 
-        debug=True,
-        allow_unsafe_werkzeug=True
+        debug=False,  # Disable debug in production
+        use_reloader=False  # Disable reloader in production
     )
-
