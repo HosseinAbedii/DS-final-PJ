@@ -27,6 +27,16 @@
                 <div class="card-body">
                     <div class="row g-3 align-items-center">
                         <div class="col-auto">
+                            <label class="form-label">Select Stock:</label>
+                            <select class="form-select" id="stockSelector" multiple>
+                                <option value="AAPL" selected>Apple (AAPL)</option>
+                                <option value="GOOGL">Google (GOOGL)</option>
+                                <option value="AMZN">Amazon (AMZN)</option>
+                                <option value="MSFT">Microsoft (MSFT)</option>
+                                <option value="TSLA">Tesla (TSLA)</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
                             <label class="form-label">Preset Ranges:</label>
                             <select class="form-select" id="timePreset">
                                 <option value="">Custom Range</option>

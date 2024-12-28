@@ -69,16 +69,62 @@ def store_in_redis(data):
 
 @app.route('/api/historical-data')
 def get_historical_data():
-    """Get historical data from Redis"""
+    """Get historical data from Redis within a specified time range for specific stocks"""
     try:
-        # Get all data from Redis sorted set
-        data = redis_client.zrange(REDIS_KEY, 0, -1, withscores=True)
-        result = []
-        for item, score in data:
+        start_time = request.args.get('start')
+        end_time = request.args.get('end')
+        stocks = request.args.get('stocks', '').split(',')
+        
+        if not start_time or not end_time:
+            return jsonify({"error": "Start and end times are required"}), 400
+            
+        # Convert ISO timestamps to Unix timestamps
+        start_ts = datetime.fromisoformat(start_time.replace('Z', '')).timestamp()
+        end_ts = datetime.fromisoformat(end_time.replace('Z', '')).timestamp()
+        
+        # Get data from Redis within the time range
+        data = redis_client.zrangebyscore(
+            REDIS_KEY,
+            min=start_ts,
+            max=end_ts,
+            withscores=True
+        )
+        
+        # Process and group the data by stock symbol
+        result = {}
+        for item, timestamp in data:
             record = json.loads(item)
-            record['timestamp'] = score
-            result.append(record)
+            symbol = record.get('stock_symbol')
+            # Filter by selected stocks if specified
+            if symbol and (not stocks or symbol in stocks):
+                if symbol not in result:
+                    result[symbol] = []
+                record['timestamp'] = timestamp
+                result[symbol].append(record)
+        
+        # Sort data for each symbol by timestamp
+        for symbol in result:
+            result[symbol].sort(key=lambda x: x['timestamp'])
+            
         return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error fetching historical data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# Add debug endpoint for time ranges
+@app.route('/api/debug/time-range')
+def get_time_range():
+    """Get the earliest and latest timestamps in the database"""
+    try:
+        earliest = redis_client.zrange(REDIS_KEY, 0, 0, withscores=True)
+        latest = redis_client.zrange(REDIS_KEY, -1, -1, withscores=True)
+        
+        return jsonify({
+            "earliest": datetime.fromtimestamp(earliest[0][1]).isoformat() if earliest else None,
+            "latest": datetime.fromtimestamp(latest[0][1]).isoformat() if latest else None,
+            "count": redis_client.zcard(REDIS_KEY)
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

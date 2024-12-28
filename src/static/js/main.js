@@ -308,7 +308,7 @@ socket.on('connect_error', (error) => {
 // Historical data handling
 const historicalCharts = {};
 
-function initializeHistoricalControls() {
+async function initializeHistoricalControls() {
     const liveViewBtn = document.getElementById('liveViewBtn');
     const historicalViewBtn = document.getElementById('historicalViewBtn');
     const historicalControls = document.getElementById('historicalControls');
@@ -316,6 +316,24 @@ function initializeHistoricalControls() {
     const startTime = document.getElementById('startTime');
     const endTime = document.getElementById('endTime');
     const fetchBtn = document.getElementById('fetchHistorical');
+    const stockSelector = document.getElementById('stockSelector');
+
+    // Get available time range from server
+    try {
+        const response = await fetch('/api/debug/time-range');
+        const timeRange = await response.json();
+        
+        if (timeRange.earliest && timeRange.latest) {
+            startTime.min = timeRange.earliest.slice(0, 16);
+            endTime.max = timeRange.latest.slice(0, 16);
+            
+            // Set initial values
+            startTime.value = timeRange.earliest.slice(0, 16);
+            endTime.value = timeRange.latest.slice(0, 16);
+        }
+    } catch (error) {
+        console.error('Error fetching time range:', error);
+    }
 
     liveViewBtn.addEventListener('click', () => switchView('live'));
     historicalViewBtn.addEventListener('click', () => switchView('historical'));
@@ -327,8 +345,10 @@ function initializeHistoricalControls() {
                 '1h': 1, '4h': 4, '1d': 24, '7d': 168
             }[e.target.value];
             
-            endTime.value = now.toISOString().slice(0, 16);
-            const start = new Date(now - hours * 3600000);
+            const end = new Date();
+            const start = new Date(end - hours * 3600000);
+            
+            endTime.value = end.toISOString().slice(0, 16);
             startTime.value = start.toISOString().slice(0, 16);
         }
     });
@@ -336,43 +356,37 @@ function initializeHistoricalControls() {
     fetchBtn.addEventListener('click', fetchHistoricalData);
 }
 
-function switchView(view) {
-    const liveView = document.getElementById('liveView');
-    const historicalView = document.getElementById('historicalView');
-    const historicalControls = document.getElementById('historicalControls');
-    const liveViewBtn = document.getElementById('liveViewBtn');
-    const historicalViewBtn = document.getElementById('historicalViewBtn');
-
-    if (view === 'historical') {
-        liveView.style.display = 'none';
-        historicalView.style.display = 'block';
-        historicalControls.style.display = 'block';
-        liveViewBtn.classList.remove('active');
-        historicalViewBtn.classList.add('active');
-    } else {
-        liveView.style.display = 'block';
-        historicalView.style.display = 'none';
-        historicalControls.style.display = 'none';
-        liveViewBtn.classList.add('active');
-        historicalViewBtn.classList.remove('active');
-    }
-}
-
 async function fetchHistoricalData() {
     const startTime = document.getElementById('startTime').value;
     const endTime = document.getElementById('endTime').value;
+    const stockSelector = document.getElementById('stockSelector');
+    const selectedStocks = Array.from(stockSelector.selectedOptions).map(option => option.value);
 
     if (!startTime || !endTime) {
         showNotification('Please select both start and end times', 'warning');
         return;
     }
 
+    if (selectedStocks.length === 0) {
+        showNotification('Please select at least one stock', 'warning');
+        return;
+    }
+
     try {
-        const response = await fetch(`/api/historical-data?start=${startTime}&end=${endTime}`);
+        showNotification('Fetching historical data...', 'info');
+        
+        const response = await fetch(
+            `/api/historical-data?start=${encodeURIComponent(startTime)}&end=${encodeURIComponent(endTime)}&stocks=${selectedStocks.join(',')}`
+        );
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (!data || Object.keys(data).length === 0) {
-            showNotification('No data available for selected time range', 'warning');
+            showNotification('No data available for selected time range and stocks', 'warning');
             return;
         }
 
@@ -380,7 +394,7 @@ async function fetchHistoricalData() {
         showNotification('Historical data loaded successfully', 'success');
     } catch (error) {
         console.error('Error fetching historical data:', error);
-        showNotification('Error loading historical data', 'error');
+        showNotification(`Error loading historical data: ${error.message}`, 'error');
     }
 }
 
@@ -409,10 +423,10 @@ function updateHistoricalCharts(data) {
         historicalCharts[symbol] = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: stockData.map(d => new Date(d.timestamp).toLocaleString()),
+                labels: stockData.map(d => new Date(d.timestamp * 1000).toLocaleString()),
                 datasets: [{
                     label: `${symbol} Price`,
-                    data: stockData.map(d => d.price),
+                    data: stockData.map(d => d.current_price),
                     borderColor: getStockColor(symbol),
                     backgroundColor: `${getStockColor(symbol)}33`,
                     borderWidth: 2,
@@ -426,14 +440,32 @@ function updateHistoricalCharts(data) {
                     legend: { display: false },
                     tooltip: {
                         mode: 'index',
-                        intersect: false
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return `$${context.parsed.y.toFixed(2)}`;
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: false,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
                         ticks: {
+                            color: '#a0a0a0',
                             callback: value => `$${value.toFixed(2)}`
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#a0a0a0',
+                            maxRotation: 45
                         }
                     }
                 }
