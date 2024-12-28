@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: flask-api
-        image: hosseinabedi/flask-api:v1.1 # Replace with your image
+        image: hosseinabedi/flask-api:v1.2 # Replace with your image
         imagePullPolicy: Always
         ports:
         - containerPort: 5001
