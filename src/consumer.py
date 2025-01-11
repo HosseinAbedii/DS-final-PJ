@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col
+from pyspark.sql.window import Window
+from pyspark.sql.functions import from_json, col, avg, col, when, lag, expr
 from pyspark.sql.types import StructType, StructField, StringType, FloatType, LongType, IntegerType
 from flask import Flask, jsonify
 from flask_socketio import SocketIO
@@ -96,10 +97,37 @@ def generate_trading_signal(price_data):
         'reason': f"Algorithm detected potential {signal.lower()} opportunity at ${price_data['current_price']}"
     }
 
+
+def calculate_indicators(df, windows = 12):
+    window_spec = Window.partitionBy("stock_symbol").orderBy("timestamp")
+
+    # Calculate Moving Average (MA) over a 12-period window
+    df = df.withColumn("MA", avg("closing_price").over(window_spec.rowsBetween(-(windows - 1), 0)))
+
+    # Calculate Exponential Moving Average (EMA)
+    alpha = 2 / (windows + 1)
+    df = df.withColumn("EMA", 
+        expr(f"({alpha} * closing_price) + ((1 - {alpha}) * lag(EMA, 1)")
+    )
+
+    # Calculate Relative Strength Index (RSI)
+    df = df.withColumn("change", col("closing_price") - lag("closing_price", 1).over(window_spec))
+    df = df.withColumn("gain", when(col("change") > 0, col("change")).otherwise(0))
+    df = df.withColumn("loss", when(col("change") < 0, -col("change")).otherwise(0))
+    
+    avg_gain = avg("gain").over(window_spec.rowsBetween(-(windows - 1), 0))
+    avg_loss = avg("loss").over(window_spec.rowsBetween(-(windows - 1), 0))
+    df = df.withColumn("RS", avg_gain / avg_loss)
+    df = df.withColumn("RSI", 100 - (100 / (1 + col("RS"))))
+
+    return df
+
+
 def foreach_batch_function(df, epoch_id):
     try:
         logger.info(f"\n=== Processing batch {epoch_id} at {datetime.now()} ===")
         print(f"\n=== Batch {epoch_id} ===")
+        df = calculate_indicators(df)
         df.show(truncate=False)
         
         rows = df.toJSON().collect()
@@ -112,6 +140,9 @@ def foreach_batch_function(df, epoch_id):
                     'current_price': data['closing_price'],  # Use closing price as current price
                     'opening_price': data['opening_price'],
                     'closing_price': data['closing_price'],
+                    'MA': data.get('MA'),
+                    'EMA': data.get('EMA'),
+                    'RSI': data.get('RSI'),
                     'high': data['high'],
                     'low': data['low'],
                     'volume': data['volume']
