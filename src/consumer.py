@@ -120,6 +120,12 @@ def calculate_indicators(df, windows = 12):
     df = df.withColumn("RS", avg_gain / avg_loss)
     df = df.withColumn("RSI", 100 - (100 / (1 + col("RS"))))
 
+
+    # Generate trading signals based on EMA and RSI
+    df = df.withColumn("signal", when((col("EMA") > col("MA")) & (col("RSI") < 30), "BUY")
+                              .when((col("EMA") < col("MA")) & (col("RSI") > 70), "SELL")
+                              .otherwise("HOLD"))
+
     return df
 
 
@@ -145,18 +151,20 @@ def foreach_batch_function(df, epoch_id):
                     'RSI': data.get('RSI'),
                     'high': data['high'],
                     'low': data['low'],
-                    'volume': data['volume']
+                    'volume': data['volume'],
+                    'signal': data.get('signal')
                 }
                 
                 # Generate and emit trading signal
-                trading_signal = generate_trading_signal(formatted_data)
-                if trading_signal:
-                    socketio.emit('trading_signal', trading_signal)
-                    logger.info(f"Trading Signal: {trading_signal['signal']} for {trading_signal['stock']}")
+                # trading_signal = generate_trading_signal(formatted_data)
+                # if trading_signal:
+                socketio.emit('signal', formatted_data["signal"])
+                    # logger.info(f"Trading Signal: {trading_signal['signal']} for {trading_signal['stock']}")
                 
                 # Emit regular stock update
                 socketio.emit('stock_update', formatted_data)
                 logger.info(f"Stock Update: {formatted_data['stock_symbol']} - ${formatted_data['current_price']}")
+                logger.info(f"Stock Update: {formatted_data['stock_symbol']} - MA: {formatted_data['MA']}, EMA: {formatted_data['EMA']}, RSI: {formatted_data['RSI']}, Signal: {formatted_data['signal']}")
                 
             except Exception as e:
                 logger.error(f"Failed to broadcast data: {e}")
