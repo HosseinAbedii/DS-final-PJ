@@ -1,0 +1,24 @@
+FROM bitnami/spark:3.5.3
+
+USER root
+WORKDIR /app
+
+# Install Python and pip
+RUN install_packages python3 python3-pip
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt kafka-python websockets redis
+
+# Copy the consumer script
+COPY src/consumer.py .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV SPARK_HOME=/opt/bitnami/spark
+
+# Switch back to non-root user
+USER 1001
+
+# Add spark-submit command
+CMD ["/opt/bitnami/spark/bin/spark-submit", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3", "--master", "local[*]", "--conf", "spark.driver.host=localhost", "--conf", "spark.driver.bindAddress=0.0.0.0", "/app/consumer.py"]
