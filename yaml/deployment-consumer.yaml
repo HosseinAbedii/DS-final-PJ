@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: spark-consumer
-        image: hosseinabedi/spark-consumer:v1.1
+        image: mfary636/spark-consumer:v1.2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 6001
