@@ -77,25 +77,6 @@ def handle_connect():
 def handle_disconnect():
     logger.info('Client disconnected from WebSocket')
 
-TRADE_SIGNALS = ['BUY', 'SELL', 'HOLD']
-SIGNAL_PROBABILITY = 0.7  # 70% chance to generate a signal
-
-def generate_trading_signal(price_data):
-    """Generate random trading signal with reasoning"""
-    if random.random() > SIGNAL_PROBABILITY:
-        return None
-        
-    signal = random.choice(TRADE_SIGNALS)
-    confidence = random.uniform(0.6, 0.95)
-    
-    return {
-        'signal': signal,
-        'confidence': confidence,
-        'timestamp': datetime.now().isoformat(),
-        'stock': price_data['stock_symbol'],
-        'price': price_data['current_price'],
-        'reason': f"Algorithm detected potential {signal.lower()} opportunity at ${price_data['current_price']}"
-    }
 
 
 def calculate_indicators(df, windows = 12):
