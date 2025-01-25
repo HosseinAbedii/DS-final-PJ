@@ -89,13 +89,15 @@ def calculate_indicators(df, windows = 12):
 
     alpha = 2 / (windows + 1)
 
-    # Add a column for the lagged EMA value
-    df = df.withColumn("EMA_lag", lag("EMA", 1).over(window_spec))
+    # Initialize EMA with the first closing price (or set a default value)
+    df = df.withColumn("EMA_init", lag("closing_price", 1).over(window_spec))
 
-    # Calculate the EMA using the precomputed lagged EMA value
-    df = df.withColumn("EMA", 
-        F.expr(f"({alpha} * closing_price) + ((1 - {alpha}) * EMA_lag)")
-    )
+    # Fill null values in the EMA initialization for the first row
+    df = df.withColumn("EMA", when(col("EMA_init").isNull(), col("closing_price"))
+                       .otherwise(alpha) * col("closing_price") + (1 - alpha) * col("EMA_init")))
+
+    # Drop the intermediate EMA initialization column
+    df = df.drop("EMA_init")
 
     # Calculate Relative Strength Index (RSI)
     df = df.withColumn("change", col("closing_price") - lag("closing_price", 1).over(window_spec))
