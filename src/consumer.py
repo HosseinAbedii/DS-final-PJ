@@ -86,10 +86,15 @@ def calculate_indicators(df, windows = 12):
     # Calculate Moving Average (MA) over a 12-period window
     df = df.withColumn("MA", avg("closing_price").over(window_spec.rowsBetween(-(windows - 1), 0)))
 
-    # Calculate Exponential Moving Average (EMA)
+
     alpha = 2 / (windows + 1)
+
+    # Add a column for the lagged EMA value
+    df = df.withColumn("EMA_lag", lag("EMA", 1).over(window_spec))
+
+    # Calculate the EMA using the precomputed lagged EMA value
     df = df.withColumn("EMA", 
-        expr(f"({alpha} * closing_price) + ((1 - {alpha}) * lag(EMA, 1)")
+        F.expr(f"({alpha} * closing_price) + ((1 - {alpha}) * EMA_lag)")
     )
 
     # Calculate Relative Strength Index (RSI)
