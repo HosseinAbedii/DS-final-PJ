@@ -24,7 +24,8 @@ schema = StructType([
     StructField("closing_price", FloatType(), True),
     StructField("high", FloatType(), True),
     StructField("low", FloatType(), True),
-    StructField("volume", IntegerType(), True)
+    StructField("volume", IntegerType(), True),
+    StructField("timestamp", FloatType(), True),
 ])
 
 # Add API endpoints
