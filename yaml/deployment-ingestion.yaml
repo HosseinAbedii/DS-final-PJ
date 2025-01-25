@@ -22,7 +22,7 @@ spec:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: "kafka:9092"
         - name: SERVER_URL
-          value: "http://192.168.220.128:5000"  # Updated port
+          value: "http://192.168.49.1:5000"  # Updated port and IP to localhost
         - name: PYTHONUNBUFFERED
           value: "1"
         livenessProbe:
