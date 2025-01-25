@@ -94,7 +94,7 @@ def calculate_indicators(df, windows = 12):
 
     # Fill null values in the EMA initialization for the first row
     df = df.withColumn("EMA", when(col("EMA_init").isNull(), col("closing_price"))
-                       .otherwise(alpha) * col("closing_price") + (1 - alpha) * col("EMA_init")))
+                       .otherwise(alpha * col("closing_price") + (1 - alpha) * col("EMA_init")))
 
     # Drop the intermediate EMA initialization column
     df = df.drop("EMA_init")
