@@ -146,13 +146,9 @@ def foreach_batch_function(df, epoch_id):
                     'opening_price': data['opening_price'],
                     'closing_price': data['closing_price'],
                     'timestamp': data['timestamp'],
-                    'MA': data.get('MA'),
-                    'EMA': data.get('EMA'),
-                    'RSI': data.get('RSI'),
                     'high': data['high'],
                     'low': data['low'],
-                    'volume': data['volume'],
-                    'signal': data.get('signal')
+                    'volume': data['volume']
                 }
                 
                 # Generate and emit trading signal
