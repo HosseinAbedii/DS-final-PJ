@@ -78,7 +78,22 @@ def handle_connect():
 def handle_disconnect():
     logger.info('Client disconnected from WebSocket')
 
+def generate_trading_signal(data):
+    """Generate random trading signal with reasoning"""
 
+    # Generate trading signals based on EMA and RSI
+    df = df.withColumn("signal", when((col("EMA") > col("MA")) & (col("RSI") < 30), "BUY")
+                              .when((col("EMA") < col("MA")) & (col("RSI") > 70), "SELL")
+                              .otherwise("HOLD"))
+    
+    return {
+        'signal': data["signal"],
+        'confidence': 50,
+        'timestamp': data['timestamp'],
+        'stock': data['stock_symbol'],
+        'price': data['current_price'],
+        'reason': f"Algorithm detected potential {data["signal"].lower()} opportunity at ${data['current_price']} with MA at {data["MA"]} and EMA at {data['EMA']} and RSI of {data["RSI"]}"
+    }
 
 def calculate_indicators(df, windows = 12):
     window_spec = Window.partitionBy("stock_symbol").orderBy("timestamp")
@@ -110,11 +125,6 @@ def calculate_indicators(df, windows = 12):
     df = df.withColumn("RSI", 100 - (100 / (1 + col("RS"))))
 
 
-    # Generate trading signals based on EMA and RSI
-    df = df.withColumn("signal", when((col("EMA") > col("MA")) & (col("RSI") < 30), "BUY")
-                              .when((col("EMA") < col("MA")) & (col("RSI") > 70), "SELL")
-                              .otherwise("HOLD"))
-
     return df
 
 
@@ -135,6 +145,7 @@ def foreach_batch_function(df, epoch_id):
                     'current_price': data['closing_price'],  # Use closing price as current price
                     'opening_price': data['opening_price'],
                     'closing_price': data['closing_price'],
+                    'timestamp': data['timestamp'],
                     'MA': data.get('MA'),
                     'EMA': data.get('EMA'),
                     'RSI': data.get('RSI'),
@@ -145,9 +156,9 @@ def foreach_batch_function(df, epoch_id):
                 }
                 
                 # Generate and emit trading signal
-                # trading_signal = generate_trading_signal(formatted_data)
+                trading_signal = generate_trading_signal(formatted_data)
                 # if trading_signal:
-                socketio.emit('signal', formatted_data["signal"])
+                socketio.emit('trading_signal', trading_signal)
                     # logger.info(f"Trading Signal: {trading_signal['signal']} for {trading_signal['stock']}")
                 
                 # Emit regular stock update

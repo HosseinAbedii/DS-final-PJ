@@ -55,8 +55,8 @@ sio = socketio.Client()
 def store_in_redis(data):
     """Store data in Redis with timestamp as score"""
     try:
-        timestamp = datetime.now().timestamp()
-        data['timestamp'] = timestamp
+        timestamp = data['timestamp']
+        # data['timestamp'] = timestamp
         # Store in sorted set
         redis_client.zadd(REDIS_KEY, {json.dumps(data): timestamp})
         # Trim old data
