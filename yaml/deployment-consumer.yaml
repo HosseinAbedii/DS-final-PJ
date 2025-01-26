@@ -9,13 +9,6 @@ spec:
   selector:
     matchLabels:
       app: spark-consumer
-  resources:
-    requests:
-      cpu: 1
-      memory: 1Gi
-    limits:
-      cpu: 2
-      memory: 2Gi
   template:
     metadata:
       labels:
@@ -39,6 +32,13 @@ spec:
         volumeMounts:
         - name: checkpoint-volume
           mountPath: /tmp/checkpoint
+        resources:
+          requests:
+            cpu: 1
+            memory: 1Gi
+          limits:
+            cpu: 2
+            memory: 2Gi
       volumes:
       - name: checkpoint-volume
         emptyDir: {}
